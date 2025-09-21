@@ -854,8 +854,8 @@ async function getAccountInfo() {
             }
         }
         
-        // Load trades (currently shows no trades)
-        loadMockTrades();
+        // Load trades showing user's investments
+        await loadMockTrades();
         
         // Update USDC and deposited balances
         await updateBalances();
@@ -864,14 +864,211 @@ async function getAccountInfo() {
     }
 }
 
-// Load trades (currently shows no trades)
-function loadMockTrades() {
+// Load user's invested strategies as trades
+async function loadMockTrades() {
     const tradesTableBody = document.getElementById('trades-table-body');
+    
+    // Show loading state
     tradesTableBody.innerHTML = `
-        <tr class="no-trades-row">
-            <td colspan="6" class="no-data-message">No trades yet. Place an order to see your trades here.</td>
+        <tr>
+            <td colspan="6" class="loading">Loading your investments...</td>
         </tr>
     `;
+    
+    try {
+        // First, check if the user has an account
+        if (!currentAccount) {
+            tradesTableBody.innerHTML = `
+                <tr class="no-trades-row">
+                    <td colspan="6" class="no-data-message">Please connect your wallet to see your investments.</td>
+                </tr>
+            `;
+            return;
+        }
+        
+        // Get account data to check for invested strategies
+        let accountData;
+        try {
+            const accountResponse = await fetch(`${API_BASE_URL}/get_account/${currentAccount}`);
+            
+            if (!accountResponse.ok) {
+                tradesTableBody.innerHTML = `
+                    <tr class="no-trades-row">
+                        <td colspan="6" class="no-data-message">No account found. Deposit USDC first.</td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            accountData = await accountResponse.json();
+            console.log('Account data for trades:', accountData);
+        } catch (error) {
+            console.error('Error fetching account data:', error);
+            tradesTableBody.innerHTML = `
+                <tr class="no-trades-row">
+                    <td colspan="6" class="error-message">Error fetching account data: ${error.message}</td>
+                </tr>
+            `;
+            return;
+        }
+        
+        // Check if the account has invested in any strategies
+        if (!accountData.strategy_ids || accountData.strategy_ids.length === 0) {
+            tradesTableBody.innerHTML = `
+                <tr class="no-trades-row">
+                    <td colspan="6" class="no-data-message">No investments yet. Invest in a strategy to see it here.</td>
+                </tr>
+            `;
+            return;
+        }
+        
+        console.log('Strategy IDs from account:', accountData.strategy_ids);
+        
+        // Generate user investments from strategy_ids
+        const userInvestments = [];
+        
+        // Show loading message while fetching strategies
+        tradesTableBody.innerHTML = `
+            <tr>
+                <td colspan="6" class="loading">Loading your investments...</td>
+            </tr>
+        `;
+        
+        // Fetch each strategy by ID
+        for (const strategyId of accountData.strategy_ids) {
+            try {
+                const strategyResponse = await fetch(`${API_BASE_URL}/get_strategy/${strategyId}`);
+                
+                if (strategyResponse.ok) {
+                    const strategy = await strategyResponse.json();
+                    console.log(`Strategy #${strategyId} details:`, strategy);
+                    
+                    // Find the user's investment in this strategy
+                    const userInvestor = strategy.investors.find(investor => 
+                        investor.address.toLowerCase() === currentAccount.toLowerCase()
+                    );
+                    
+                    if (userInvestor) {
+                        userInvestments.push({
+                            id: strategyId,
+                            name: strategy.name,
+                            amount: userInvestor.amount,
+                            owner: strategy.owner
+                        });
+                    }
+                } else {
+                    console.error(`Error fetching strategy #${strategyId}:`, await strategyResponse.text());
+                }
+            } catch (error) {
+                console.error(`Error fetching strategy #${strategyId}:`, error);
+            }
+        }
+        
+        // If no investments found after checking
+        if (userInvestments.length === 0) {
+            tradesTableBody.innerHTML = `
+                <tr class="no-trades-row">
+                    <td colspan="6" class="no-data-message">No investments found. Invest in a strategy to see it here.</td>
+                </tr>
+            `;
+            return;
+        }
+        
+        // Clear the table
+        tradesTableBody.innerHTML = '';
+        
+        // Get the strategy details with all investor information
+        const strategy = await fetch(`${API_BASE_URL}/get_strategy/1`)
+            .then(res => res.ok ? res.json() : null)
+            .catch(err => {
+                console.error('Error fetching strategy details:', err);
+                return null;
+            });
+            
+        if (!strategy) {
+            tradesTableBody.innerHTML = `
+                <tr class="no-trades-row">
+                    <td colspan="6" class="error-message">Error fetching strategy details</td>
+                </tr>
+            `;
+            return;
+        }
+        
+        console.log('Full strategy details:', strategy);
+        
+        // Filter investments by the current user
+        const userInvestmentsList = strategy.investors.filter(investor => 
+            investor.address.toLowerCase() === currentAccount.toLowerCase()
+        );
+        
+        console.log('User investments:', userInvestmentsList);
+        
+        if (userInvestmentsList.length === 0) {
+            tradesTableBody.innerHTML = `
+                <tr class="no-trades-row">
+                    <td colspan="6" class="no-data-message">No investments found for this user.</td>
+                </tr>
+            `;
+            return;
+        }
+        
+        // Generate trade entries for each investment
+        const trades = [];
+        
+        // Create a trade entry for each individual investment
+        userInvestmentsList.forEach((investment, index) => {
+            const now = new Date();
+            // Stagger the dates so they don't all show the same timestamp
+            const investmentDate = new Date(now.getTime() - (index * 3600000)); // 1 hour apart
+            
+            trades.push({
+                type: 'Investment',
+                strategyId: 1, // Currently hardcoded to strategy ID 1
+                strategyName: strategy.name,
+                amount: investment.amount,
+                status: 'Active',
+                return: 'Pending',
+                date: investmentDate
+            });
+        });
+        
+        // Sort trades by date, most recent first
+        trades.sort((a, b) => b.date - a.date);
+        
+        // Clear the table
+        tradesTableBody.innerHTML = '';
+        
+        // Add each trade to the table
+        trades.forEach(trade => {
+            const row = document.createElement('tr');
+            
+            // Use a simple class name without spaces
+            const rowClass = trade.type.toLowerCase().includes('investment') ? 'investment-row' : 'trade-row';
+            row.classList.add(rowClass);
+            
+            const dateString = trade.date.toLocaleDateString() + ' ' + 
+                               trade.date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            
+            row.innerHTML = `
+                <td>Strategy #${trade.strategyId}</td>
+                <td>${trade.strategyName}</td>
+                <td>${trade.amount} USDC</td>
+                <td>${trade.status}</td>
+                <td class="pending">Pending</td>
+                <td>${dateString}</td>
+            `;
+            
+            tradesTableBody.appendChild(row);
+        });
+        
+    } catch (error) {
+        console.error('Error loading investments:', error);
+        tradesTableBody.innerHTML = `
+            <tr class="no-trades-row">
+                <td colspan="6" class="error-message">Error loading investments: ${error.message}</td>
+            </tr>
+        `;
+    }
 }
 
 // Copy wallet address to clipboard

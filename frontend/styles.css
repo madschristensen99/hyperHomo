@@ -1067,3 +1067,59 @@ button:disabled {
     color: var(--light-gray);
     font-style: italic;
 }
+
+.investment-row {
+    position: relative;
+    border-left: 3px solid var(--green);
+    transition: all 0.3s ease;
+}
+
+.investment-row:hover {
+    background-color: rgba(0, 255, 128, 0.1);
+}
+
+.trade-row {
+    position: relative;
+    border-left: 3px solid var(--electric-blue);
+    transition: all 0.3s ease;
+}
+
+.trade-row:hover {
+    background-color: rgba(0, 128, 255, 0.1);
+}
+
+/* Add a small indicator for trade type */
+.investment-row td:first-child::before,
+.trade-row td:first-child::before {
+    content: '';
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: 6px;
+}
+
+.investment-row td:first-child::before {
+    background-color: var(--green);
+}
+
+.trade-row td:first-child::before {
+    background-color: var(--electric-blue);
+}
+
+.error-message {
+    color: var(--orange);
+    font-style: italic;
+}
+
+.pending {
+    color: var(--electric-blue);
+    font-weight: bold;
+}
+
+.loading {
+    color: var(--electric-blue);
+    font-style: italic;
+    text-align: center;
+    padding: 1rem;
+}

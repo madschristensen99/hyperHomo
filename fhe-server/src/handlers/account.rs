@@ -116,7 +116,7 @@ pub async fn invest_handler(State(state): State<AppState>, Json(payload): Json<I
     };
     
     if account.balance >= payload.amount {
-        let investor = Investor { address: payload.address.clone(), amount: payload.amount };
+        let investor = Investor { address: payload.address.clone(), amount: payload.amount }; 
         trading_state.add_investor(payload.strategy_id, investor);
         trading_state.increase_amount(payload.strategy_id, payload.amount);
         account_state.update_account(payload.address.clone(), account.balance - payload.amount);

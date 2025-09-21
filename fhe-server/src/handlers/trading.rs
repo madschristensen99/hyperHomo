@@ -10,6 +10,7 @@ use std::sync::Mutex;
 pub struct Investor {
     pub address: String,
     pub amount: u128,
+    //pub percent: f64,
 }
 
 #[derive(Clone)]
@@ -36,25 +37,42 @@ impl TradingState {
         }
     }
 
-    pub fn create_strategy(&mut self, name: String, owner: String, upper_bound: FheUint8, lower_bound: FheUint8) {
+    pub fn create_strategy(&mut self, name: String, owner: String, upper_bound: FheUint8, lower_bound: FheUint8) -> u128 {
         self.id_counter += 1;
-        self.strategies.insert(self.id_counter, TradingStrategy { name, owner, upper_bound, lower_bound, amount: 0, investors: Vec::new() });
+        let strategy_id = self.id_counter;
+        self.strategies.insert(strategy_id, TradingStrategy { name, owner, upper_bound, lower_bound, amount: 0, investors: Vec::new() });
+        strategy_id
     }
 
-    pub fn get_strategy(&self, id: u128) -> TradingStrategy {
-        self.strategies.get(&id).unwrap().clone()
+    pub fn get_strategy(&self, id: u128) -> Result<TradingStrategy, String> {
+        match self.strategies.get(&id) {
+            Some(strategy) => Ok(strategy.clone()),
+            None => Err(format!("Strategy {} not found", id))
+        }
     }
 
     pub fn get_all_strategies(&self) -> Vec<TradingStrategy> {
         self.strategies.values().cloned().collect()
     }
 
-    pub fn increase_amount(&mut self, id: u128, amount: u128) {
-        self.strategies.get_mut(&id).unwrap().amount += amount;
+    pub fn increase_amount(&mut self, id: u128, amount: u128) -> Result<(), String> {
+        match self.strategies.get_mut(&id) {
+            Some(strategy) => {
+                strategy.amount += amount;
+                Ok(())
+            }
+            None => Err(format!("Strategy {} not found", id))
+        }
     }
 
-    pub fn add_investor(&mut self, id: u128, investor: Investor) {
-        self.strategies.get_mut(&id).unwrap().investors.push(investor);
+    pub fn add_investor(&mut self, id: u128, investor: Investor) -> Result<(), String> {
+        match self.strategies.get_mut(&id) {
+            Some(strategy) => {
+                strategy.investors.push(investor);
+                Ok(())
+            }
+            None => Err(format!("Strategy {} not found", id))
+        }
     }
 }
 
@@ -86,23 +104,25 @@ pub struct CheckShortStrategyRequest {
     value: u8,
 }
 
-
-pub async fn create_strategy_handler(State(state): State<AppState>, Json(payload): Json<CreateStrategyRequest>) -> String {
+pub async fn create_strategy_handler(State(state): State<AppState>, Json(payload): Json<CreateStrategyRequest>) -> Result<String, (StatusCode, String)> {
     let upper_bound = FheUint8::encrypt(payload.upper_bound, &*state.client_key);
     let lower_bound = FheUint8::encrypt(payload.lower_bound, &*state.client_key);
     let name = payload.name.clone();
-    state.trading_state.lock().unwrap().create_strategy(payload.name, payload.owner, upper_bound, lower_bound);
-    format!("Strategy created: {}", name)
+    let strategy_id = state.trading_state.lock().unwrap().create_strategy(payload.name, payload.owner, upper_bound, lower_bound);
+    Ok(format!("Strategy created: {} with ID: {}", name, strategy_id))
 }
 
-pub async fn get_strategy_handler(State(state): State<AppState>, Path(id): Path<u128>) -> Json<GetStrategyResponse> {
-    let strategy = state.trading_state.lock().unwrap().get_strategy(id);
-    Json(GetStrategyResponse {
-        name: strategy.name,
-        owner: strategy.owner,  
-        amount: strategy.amount,
-        investors: strategy.investors,
-    })
+pub async fn get_strategy_handler(State(state): State<AppState>, Path(id): Path<u128>) -> Result<Json<GetStrategyResponse>, (StatusCode, String)> {
+    let trading_state = state.trading_state.lock().unwrap();
+    match trading_state.get_strategy(id) {
+        Ok(strategy) => Ok(Json(GetStrategyResponse {
+            name: strategy.name,
+            owner: strategy.owner,  
+            amount: strategy.amount,
+            investors: strategy.investors,
+        })),
+        Err(error) => Err((StatusCode::NOT_FOUND, error))
+    }
 }
 
 pub async fn get_all_strategies_handler(State(state): State<AppState>) -> Json<Vec<GetStrategyResponse>> {
@@ -115,22 +135,32 @@ pub async fn get_all_strategies_handler(State(state): State<AppState>) -> Json<V
     }).collect())
 }
 
-pub async fn check_long_strategy_handler(State(state): State<AppState>, Json(payload): Json<CheckLongStrategyRequest>) -> String {
-    let strategy = state.trading_state.lock().unwrap().get_strategy(payload.strategy_id);
+pub async fn check_long_strategy_handler(State(state): State<AppState>, Json(payload): Json<CheckLongStrategyRequest>) -> Result<String, (StatusCode, String)> {
+    let trading_state = state.trading_state.lock().unwrap();
+    let strategy = match trading_state.get_strategy(payload.strategy_id) {
+        Ok(strategy) => strategy,
+        Err(error) => return Err((StatusCode::NOT_FOUND, error))
+    };
+    
     let lower_bound = strategy.lower_bound;
     set_server_key((*state.server_key).clone());
     let value = FheUint8::encrypt(payload.value, &*state.client_key);
     let result = lower_bound.gt(&value);
     let result_decrypted: bool = result.decrypt(&*state.client_key);
-    format!("Result: {}", result_decrypted)
+    Ok(format!("Result: {}", result_decrypted))
 }
 
-pub async fn check_short_strategy_handler(State(state): State<AppState>, Json(payload): Json<CheckShortStrategyRequest>) -> String {
-    let strategy = state.trading_state.lock().unwrap().get_strategy(payload.strategy_id);
+pub async fn check_short_strategy_handler(State(state): State<AppState>, Json(payload): Json<CheckShortStrategyRequest>) -> Result<String, (StatusCode, String)> {
+    let trading_state = state.trading_state.lock().unwrap();
+    let strategy = match trading_state.get_strategy(payload.strategy_id) {
+        Ok(strategy) => strategy,
+        Err(error) => return Err((StatusCode::NOT_FOUND, error))
+    };
+    
     let upper_bound = strategy.upper_bound;
     set_server_key((*state.server_key).clone());
     let value = FheUint8::encrypt(payload.value, &*state.client_key);
     let result = upper_bound.lt(&value);
     let result_decrypted: bool = result.decrypt(&*state.client_key);
-    format!("Result: {}", result_decrypted)
+    Ok(format!("Result: {}", result_decrypted))
 }

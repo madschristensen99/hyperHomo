@@ -3,6 +3,7 @@ import requests
 import json
 import time
 import logging
+import random
 from datetime import datetime
 from hyperliquid.utils import constants
 
@@ -46,7 +47,9 @@ def check_strategy(strategy_id, strategy_type, value=TEST_VALUE):
         response.raise_for_status()
         result = response.text
         logger.info(f"Strategy check result: {result}")
-        return result == "true"
+        
+        # Check if the result contains 'true' (case-insensitive)
+        return "true" in result.lower()
     except Exception as e:
         logger.error(f"Error checking {strategy_type} strategy {strategy_id}: {e}")
         return False
@@ -114,20 +117,33 @@ def check_and_execute_strategies():
         
         logger.info(f"Evaluating strategy {strategy_id} ({strategy_name}): token={token}, investors={len(investors)}, is_open={is_open}")
         
-        # Check if strategy has investors and is open
-        if len(investors) > 0 and not is_open:
+        # Check if strategy has investors
+        if len(investors) > 0:
+            # If the strategy is already open, we don't need to check it again
+            if is_open:
+                logger.info(f"Strategy {strategy_id} is already open, skipping checks")
+                continue
+                
             logger.info(f"Processing strategy {strategy_id} with {len(investors)} investors")
             
-            # Check long strategy
-            long_result = check_strategy(strategy_id, "long", TEST_VALUE)
+            # Generate a new random test value for long strategy check (between 20 and 80)
+            long_test_value = random.randint(20, 80)
+            logger.info(f"Using random test value for long strategy check: {long_test_value}")
+            
+            # Check long strategy with random test value
+            long_result = check_strategy(strategy_id, "long", long_test_value)
             if long_result:
                 logger.info(f"Long strategy {strategy_id} triggered!")
                 execute_trade(exchange, strategy, True)
             else:
                 logger.info(f"Long strategy {strategy_id} not triggered")
             
-            # Check short strategy
-            short_result = check_strategy(strategy_id, "short", TEST_VALUE)
+            # Generate a new random test value for short strategy check (between 20 and 80)
+            short_test_value = random.randint(20, 80)
+            logger.info(f"Using random test value for short strategy check: {short_test_value}")
+            
+            # Check short strategy with random test value
+            short_result = check_strategy(strategy_id, "short", short_test_value)
             if short_result:
                 logger.info(f"Short strategy {strategy_id} triggered!")
                 execute_trade(exchange, strategy, False)

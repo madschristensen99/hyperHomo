@@ -1,6 +1,8 @@
 use axum::{
-    routing::{get, post}, Router, Json, extract::State,
-    http::StatusCode,
+    routing::{get, post}, Router, extract::State,
+    http::{HeaderMap, Method, Request, Response, StatusCode},
+    middleware::{self, Next},
+    response::IntoResponse,
 };
 use std::sync::Arc;
 use tfhe::{
@@ -71,6 +73,12 @@ async fn main() {
         account_state: Arc::new(Mutex::new(account_state)),
     };
 
+<<<<<<< HEAD
+=======
+
+    // We'll use our own CORS middleware
+
+>>>>>>> 249f71bbb52518528442d22755da4e3e51724abf
     let app = Router::new()
         .route("/", get(hello_world))
         .route("/create_strategy", post(handlers::trading::create_strategy_handler))
@@ -78,9 +86,13 @@ async fn main() {
         .route("/check_short_strategy", post(handlers::trading::check_short_strategy_handler))
         .route("/get_strategy/:id", get(handlers::trading::get_strategy_handler))
         .route("/get_all_strategies", get(handlers::trading::get_all_strategies_handler))
+<<<<<<< HEAD
         .route("/create_account", post(handlers::account::create_account_handler))
         .route("/deposit", post(handlers::account::deposit_handler))
         .route("/get_account/:address", get(handlers::account::get_account_handler))
+=======
+        .layer(middleware::from_fn(cors_middleware))
+>>>>>>> 249f71bbb52518528442d22755da4e3e51724abf
         .with_state(state);
 
     
@@ -89,4 +101,35 @@ async fn main() {
     axum::serve(listener, app).await.unwrap();
 
     println!("Hello, world!");
+}
+
+// Custom CORS middleware
+async fn cors_middleware(req: Request<axum::body::Body>, next: Next) -> impl IntoResponse {
+    // Get the origin from the request headers
+    let origin = req.headers()
+        .get("Origin")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("*");
+    let origin_str = origin.to_string();
+
+    // Handle preflight OPTIONS request
+    if req.method() == Method::OPTIONS {
+        let mut headers = HeaderMap::new();
+        headers.insert("Access-Control-Allow-Origin", origin_str.parse().unwrap());
+        headers.insert("Access-Control-Allow-Methods", "GET, POST, OPTIONS".parse().unwrap());
+        headers.insert("Access-Control-Allow-Headers", "Content-Type".parse().unwrap());
+        headers.insert("Access-Control-Max-Age", "86400".parse().unwrap()); // 24 hours
+        
+        return (StatusCode::OK, headers, "").into_response();
+    }
+
+    // For regular requests, add CORS headers to the response
+    let mut response = next.run(req).await;
+    
+    let headers = response.headers_mut();
+    headers.insert("Access-Control-Allow-Origin", origin_str.parse().unwrap());
+    headers.insert("Access-Control-Allow-Methods", "GET, POST, OPTIONS".parse().unwrap());
+    headers.insert("Access-Control-Allow-Headers", "Content-Type".parse().unwrap());
+    
+    response
 }

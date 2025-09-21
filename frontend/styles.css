@@ -713,6 +713,13 @@ body::before {
     color: #dc3545;
 }
 
+.status-warning {
+    display: block;
+    background-color: rgba(255, 153, 0, 0.2);
+    border: 1px solid #ff9900;
+    color: #ff9900;
+}
+
 button:disabled {
     opacity: 0.6;
     cursor: not-allowed;
@@ -957,3 +964,22 @@ button:disabled {
     box-shadow: 0 0 5px rgba(137, 207, 240, 0.3);
 }
 
+
+/* FHE Data Styling */
+.fhe-data-row {
+    position: relative;
+    border-left: 3px solid var(--electric-blue);
+}
+
+.fhe-data-row::before {
+    content: 'FHE';
+    position: absolute;
+    top: -8px;
+    left: -3px;
+    background: linear-gradient(45deg, var(--easter-blue), var(--neon-blue));
+    color: white;
+    font-size: 0.6rem;
+    padding: 2px 5px;
+    border-radius: 3px;
+    opacity: 0.8;
+}

@@ -5,7 +5,7 @@
  */
 
 // Import ethers.js library
-import { ethers } from "./ethers.min.js";
+import { ethers } from "../ethers.min.js";
 
 // Import contract constants
 import { HYPERLIQUID_NETWORK, USDC_CONTRACT, VAULT_CONTRACT } from './contracts.js';

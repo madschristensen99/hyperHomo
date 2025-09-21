@@ -5,7 +5,7 @@
  */
 
 // FHE Server API URL
-const API_BASE_URL = 'https://e5d42a50f35fe39b83a08b59a6b5e0116acbfbbe-3000.dstack-prod5.phala.network';
+const API_BASE_URL = 'https://5f2c0532617480427e0633f43274e1d3df471d43-3000.dstack-prod5.phala.network';
 
 // Show the selected page and update navigation
 function showPage(pageId) {

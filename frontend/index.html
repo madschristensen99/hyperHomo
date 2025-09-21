@@ -204,80 +204,105 @@
         <div id="account" class="page">
             <h2 class="section-title">Account Overview</h2>
             
-            <div class="account-section">
-                <div class="balance-card">
-                    <div class="balance-amount">$47,392.84</div>
-                    <div>Total Portfolio Value</div>
-                </div>
-                
-                <div class="stats-grid">
-                    <div class="stat-card">
-                        <div class="stat-value available-balance">$12,847.32</div>
-                        <div>Available Balance</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value in-positions">$34,545.52</div>
-                        <div>In Positions</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value total-pnl">+18.7%</div>
-                        <div>Total P&L</div>
-                    </div>
+            <!-- Wallet Not Connected View -->
+            <div id="wallet-not-connected" class="wallet-connect-container">
+                <div class="wallet-connect-message">
+                    <div class="wallet-icon">👛</div>
+                    <h3>Connect Your Wallet</h3>
+                    <p>Connect your Ethereum wallet to access your account information, deploy strategies, and place orders.</p>
+                    <button id="connect-wallet-btn" class="connect-wallet-btn">Connect Wallet</button>
                 </div>
             </div>
             
-            <div class="account-section">
-                <h3 class="section-subtitle">Recent Trades</h3>
-                <table class="trades-table">
-                    <thead>
-                        <tr>
-                            <th>Pair</th>
-                            <th>Side</th>
-                            <th>Size</th>
-                            <th>Price</th>
-                            <th>P&L</th>
-                            <th>Time</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td>BTC-USD</td>
-                            <td>LONG</td>
-                            <td>0.5 BTC</td>
-                            <td>$43,247</td>
-                            <td class="profit">+$1,247</td>
-                            <td>2 hours ago</td>
-                        </tr>
-                        <tr>
-                            <td>ETH-USD</td>
-                            <td>SHORT</td>
-                            <td>2.3 ETH</td>
-                            <td>$2,847</td>
-                            <td class="loss">-$389</td>
-                            <td>5 hours ago</td>
-                        </tr>
-                        <tr>
-                            <td>SOL-USD</td>
-                            <td>LONG</td>
-                            <td>15 SOL</td>
-                            <td>$127.45</td>
-                            <td class="profit">+$567</td>
-                            <td>1 day ago</td>
-                        </tr>
-                        <tr>
-                            <td>AVAX-USD</td>
-                            <td>LONG</td>
-                            <td>50 AVAX</td>
-                            <td>$32.78</td>
-                            <td class="profit">+$234</td>
-                            <td>2 days ago</td>
-                        </tr>
-                    </tbody>
-                </table>
+            <!-- Wallet Connected View -->
+            <div id="wallet-connected" class="account-container" style="display: none;">
+                <div class="account-header">
+                    <div class="account-address">
+                        <span id="wallet-address">0x0000...0000</span>
+                        <button id="copy-address-btn" class="copy-btn" title="Copy address">📋</button>
+                        <button id="disconnect-wallet-btn" class="disconnect-btn">Disconnect</button>
+                    </div>
+                </div>
+                
+                <div class="account-section">
+                    <div class="balance-card">
+                        <div id="total-balance" class="balance-amount">--</div>
+                        <div>Total Portfolio Value</div>
+                    </div>
+                    
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div id="available-balance" class="stat-value available-balance">--</div>
+                            <div>Available Balance</div>
+                        </div>
+                        <div class="stat-card">
+                            <div id="in-positions" class="stat-value in-positions">--</div>
+                            <div>In Positions</div>
+                        </div>
+                        <div class="stat-card">
+                            <div id="total-pnl" class="stat-value total-pnl">--</div>
+                            <div>Total P&L</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="account-section">
+                    <h3 class="section-subtitle">Deposit USDC</h3>
+                    <div class="deposit-container">
+                        <div class="deposit-info">
+                            <div class="deposit-balance">
+                                <div class="balance-label">USDC Balance:</div>
+                                <div id="usdc-balance" class="balance-value">--</div>
+                            </div>
+                            <div class="deposit-balance">
+                                <div class="balance-label">Deposited USDC:</div>
+                                <div id="deposited-usdc" class="balance-value">--</div>
+                            </div>
+                        </div>
+                        
+                        <form id="deposit-form" class="deposit-form">
+                            <div class="form-group">
+                                <label class="form-label">Amount to Deposit (USDC)</label>
+                                <input type="number" id="deposit-amount" class="form-input" placeholder="Enter USDC amount" step="0.01" min="0" required>
+                            </div>
+                            
+                            <div class="deposit-actions">
+                                <button type="button" id="approve-usdc-btn" class="action-btn">Approve USDC</button>
+                                <button type="submit" id="deposit-usdc-btn" class="action-btn" disabled>Deposit USDC</button>
+                            </div>
+                            
+                            <div id="deposit-status" class="deposit-status"></div>
+                        </form>
+                    </div>
+                </div>
+                
+                <div class="account-section">
+                    <h3 class="section-subtitle">Recent Trades</h3>
+                    <table class="trades-table">
+                        <thead>
+                            <tr>
+                                <th>Pair</th>
+                                <th>Side</th>
+                                <th>Size</th>
+                                <th>Price</th>
+                                <th>P&L</th>
+                                <th>Time</th>
+                            </tr>
+                        </thead>
+                        <tbody id="trades-table-body">
+                            <!-- Trades will be loaded dynamically -->
+                            <tr class="no-trades-row">
+                                <td colspan="6" class="no-data-message">No recent trades found</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
 
-    <script src="script.js"></script>
+    <script src="../ethers.min.js"></script>
+    <script type="module" src="script.js"></script>
 </body>
 </html>
+

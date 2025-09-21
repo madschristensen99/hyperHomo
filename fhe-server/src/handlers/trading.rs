@@ -40,10 +40,10 @@ impl TradingState {
         }
     }
 
-    pub fn create_strategy(&mut self, name: String, owner: String, upper_bound: FheUint8, lower_bound: FheUint8) -> u128 {
+    pub fn create_strategy(&mut self, name: String, owner: String, upper_bound: FheUint8, lower_bound: FheUint8, token: String) -> u128 {
         self.id_counter += 1;
         let strategy_id = self.id_counter;
-        self.strategies.insert(strategy_id, TradingStrategy { name, owner, upper_bound, lower_bound, amount: 0, investors: Vec::new(), is_open: false, is_long: false, token: String::new() });
+        self.strategies.insert(strategy_id, TradingStrategy { name, owner, upper_bound, lower_bound, amount: 0, investors: Vec::new(), is_open: false, is_long: false, token: token });
         strategy_id
     }
 
@@ -85,6 +85,7 @@ pub struct CreateStrategyRequest {
     upper_bound: u8,
     lower_bound: u8,
     owner: String,
+    token: String,
 }
 
 #[derive(Serialize)]
@@ -114,7 +115,7 @@ pub async fn create_strategy_handler(State(state): State<AppState>, Json(payload
     let upper_bound = FheUint8::encrypt(payload.upper_bound, &*state.client_key);
     let lower_bound = FheUint8::encrypt(payload.lower_bound, &*state.client_key);
     let name = payload.name.clone();
-    let strategy_id = state.trading_state.lock().unwrap().create_strategy(payload.name, payload.owner, upper_bound, lower_bound);
+    let strategy_id = state.trading_state.lock().unwrap().create_strategy(payload.name, payload.owner, upper_bound, lower_bound, payload.token);
     Ok(format!("Strategy created: {} with ID: {}", name, strategy_id))
 }
 

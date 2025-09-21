@@ -88,7 +88,7 @@ async function fetchAllStrategies() {
 }
 
 // Create a new strategy on the FHE server
-async function createStrategy(name, upperBound, lowerBound, owner, signature) {
+async function createStrategy(name, upperBound, lowerBound, owner, signature, token = 'ETH') {
     try {
         const response = await fetch(`${API_BASE_URL}/create_strategy`, {
             method: 'POST',
@@ -100,7 +100,8 @@ async function createStrategy(name, upperBound, lowerBound, owner, signature) {
                 upper_bound: parseInt(upperBound),
                 lower_bound: parseInt(lowerBound),
                 owner,
-                signature // Include the signature to verify ownership
+                signature, // Include the signature to verify ownership
+                token // Add the token field with default value 'ETH'
             })
         });
         
@@ -1375,11 +1376,12 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             const nameInput = this.querySelector('input[placeholder="Enter strategy name"]');
-            const indicatorSelect = this.querySelector('select');
+            const indicatorSelect = this.querySelector('select:nth-of-type(1)');
             const upperBoundInput = this.querySelector('input[placeholder="Upper limit"]');
             const lowerBoundInput = this.querySelector('input[placeholder="Lower limit"]');
+            const tokenSelect = document.getElementById('token-select');
             
-            if (!nameInput || !indicatorSelect || !upperBoundInput || !lowerBoundInput) {
+            if (!nameInput || !indicatorSelect || !upperBoundInput || !lowerBoundInput || !tokenSelect) {
                 alert('Form fields not found!');
                 return;
             }
@@ -1388,6 +1390,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const indicator = indicatorSelect.value;
             const upperBound = upperBoundInput.value;
             const lowerBound = lowerBoundInput.value;
+            const token = tokenSelect.value;
             
             // Simple validation
             if (!name || !indicator || !upperBound || !lowerBound) {
@@ -1417,19 +1420,33 @@ document.addEventListener('DOMContentLoaded', function() {
                     upperBound, 
                     lowerBound, 
                     owner,
-                    signedData.signature
+                    signedData.signature,
+                    token // Use the selected token
                 );
                 
                 // Reset form
                 this.reset();
                 
-                // Show success message
-                alert('Strategy deployed successfully! Your encrypted strategy is now running.');
+                // Navigate to strategies page and show a status message there
+                showPage('strategies');
                 
-                // Refresh strategies list if on strategies page
-                if (document.getElementById('strategies').classList.contains('active')) {
-                    loadStrategies();
-                }
+                // Show success message on the strategies page
+                const statusElement = document.createElement('div');
+                statusElement.className = 'status-message status-success';
+                statusElement.textContent = 'Strategy deployed successfully! Your encrypted strategy is now running.';
+                
+                // Insert the status message at the top of the strategies page
+                const strategiesPage = document.getElementById('strategies');
+                strategiesPage.insertBefore(statusElement, strategiesPage.firstChild);
+                
+                // Load strategies
+                loadStrategies();
+                
+                // Remove the status message after 5 seconds
+                setTimeout(() => {
+                    statusElement.style.opacity = '0';
+                    setTimeout(() => statusElement.remove(), 500); // Remove after fade out
+                }, 5000);
             } catch (error) {
                 alert(`Error creating strategy: ${error.message}`);
             } finally {

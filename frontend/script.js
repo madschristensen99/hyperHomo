@@ -930,7 +930,7 @@ async function loadStrategies() {
                     Owner: ${truncateAddress(strategy.owner)}
                     ${isOwnedByUser ? '<span class="owner-badge">Your Strategy</span>' : ''}
                 </div>
-                <button class="copy-btn" onclick="copyStrategy('${strategy.name}')">Copy Strategy</button>
+                <button class="invest-btn" onclick="investWithStrategy(${index + 1}, '${strategy.name}')">Invest with Strategy</button>
             `;
             strategyGrid.appendChild(strategyCard);
         });
@@ -950,6 +950,185 @@ function truncateAddress(address) {
     if (!address) return '';
     return `${address.substring(0, 6)}...${address.substring(address.length - 4)}`;
 }
+
+// Invest with a strategy
+async function investWithStrategy(strategyId, strategyName) {
+    if (!isWalletConnected || !currentAccount) {
+        alert('Please connect your wallet first');
+        showPage('account');
+        return;
+    }
+    
+    // Get the modal elements
+    const modal = document.getElementById('investment-modal');
+    const modalStrategyName = document.getElementById('modal-strategy-name');
+    const modalUsdcBalance = document.getElementById('modal-usdc-balance');
+    const strategyIdInput = document.getElementById('investment-strategy-id');
+    const closeModal = document.querySelector('.close-modal');
+    
+    // Set the strategy information
+    modalStrategyName.textContent = strategyName || `Strategy #${strategyId}`;
+    strategyIdInput.value = strategyId;
+    
+    // Show the modal
+    modal.style.display = 'block';
+    
+    // Get and display the user's deposited USDC balance from FHE server
+    try {
+        // Try to get FHE account balance
+        const response = await fetch(`${API_BASE_URL}/get_account/${currentAccount}`);
+        
+        if (response.ok) {
+            const accountData = await response.json();
+            modalUsdcBalance.textContent = `${parseFloat(accountData.balance).toFixed(2)} USDC`;
+        } else {
+            // Fallback to wallet balance if FHE account doesn't exist
+            const usdcBalance = await getUsdcBalance();
+            modalUsdcBalance.textContent = `${parseFloat(usdcBalance).toFixed(2)} USDC (wallet)`;
+        }
+    } catch (error) {
+        console.error('Error getting account balance:', error);
+        modalUsdcBalance.textContent = 'Error loading balance';
+    }
+    
+    // Close modal when clicking the X
+    closeModal.onclick = function() {
+        modal.style.display = 'none';
+    };
+    
+    // Close modal when clicking outside of it
+    window.onclick = function(event) {
+        if (event.target === modal) {
+            modal.style.display = 'none';
+        }
+    };
+    
+    // Handle the investment form submission
+    const investmentForm = document.getElementById('investment-form');
+    
+    // Remove any existing event listeners
+    const newInvestmentForm = investmentForm.cloneNode(true);
+    investmentForm.parentNode.replaceChild(newInvestmentForm, investmentForm);
+    
+    // Add new event listener
+    newInvestmentForm.addEventListener('submit', handleInvestmentSubmit);
+}
+
+// Handle investment form submission
+async function handleInvestmentSubmit(e) {
+    e.preventDefault();
+    
+    // Get form values
+    const strategyIdInput = document.getElementById('investment-strategy-id');
+    const strategyId = strategyIdInput.value;
+    const amountInput = document.getElementById('investment-amount');
+    const amount = amountInput.value;
+    
+    console.log('Raw strategy ID:', strategyId);
+    
+    // Validate inputs
+    if (!strategyId) {
+        alert('Strategy ID is missing');
+        return;
+    }
+    
+    if (!amount || isNaN(parseFloat(amount)) || parseFloat(amount) <= 0) {
+        alert('Please enter a valid amount');
+        return;
+    }
+    
+    // Get modal and status elements
+    const modal = document.getElementById('investment-modal');
+    const statusElement = document.getElementById('investment-status');
+    
+    try {
+        // Show loading state
+        if (statusElement) {
+            statusElement.textContent = 'Processing investment...';
+            statusElement.classList.remove('status-pending', 'status-success', 'status-error', 'status-warning');
+            statusElement.classList.add('status-pending');
+            statusElement.style.display = 'block';
+        }
+        
+        // Make sure strategy_id is a proper number, not a string
+        // Force it to be a number by using Number() instead of parseInt
+        const strategyIdNum = Number(strategyId);
+        
+        // Convert amount to a whole number (the backend expects integers)
+        // We'll treat the amount as a whole number of tokens
+        const amountNum = Math.floor(parseFloat(amount));
+        
+        // Check if inputs are valid
+        if (isNaN(strategyIdNum) || strategyIdNum <= 0) {
+            throw new Error(`Invalid strategy ID: ${strategyId}. Must be a positive number.`);
+        }
+        
+        if (isNaN(amountNum) || amountNum <= 0) {
+            throw new Error(`Invalid amount: ${amount}. Must be a positive whole number.`);
+        }
+        
+        console.log('Investment payload:', {
+            address: currentAccount,
+            strategy_id: strategyIdNum,
+            amount: amountNum
+        });
+        
+        // Call the invest endpoint
+        const response = await fetch(`${API_BASE_URL}/invest`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                address: currentAccount,
+                strategy_id: strategyIdNum,
+                amount: amountNum
+            })
+        });
+        
+        if (response.ok) {
+            const result = await response.text();
+            console.log('Investment successful:', result);
+            
+            if (statusElement) {
+                statusElement.textContent = 'Investment successful!';
+                statusElement.classList.remove('status-pending');
+                statusElement.classList.add('status-success');
+                
+                // Hide the modal after 2 seconds
+                setTimeout(() => {
+                    modal.style.display = 'none';
+                    // Clear the form
+                    amountInput.value = '';
+                }, 2000);
+            }
+            
+            // Refresh account info and strategies
+            await getAccountInfo();
+            loadStrategies();
+        } else {
+            const errorText = await response.text();
+            console.error('Investment error:', errorText);
+            
+            if (statusElement) {
+                statusElement.textContent = `Investment failed: ${errorText}`;
+                statusElement.classList.remove('status-pending');
+                statusElement.classList.add('status-error');
+            }
+        }
+    } catch (error) {
+        console.error('Error investing with strategy:', error);
+        
+        if (statusElement) {
+            statusElement.textContent = `Error: ${error.message}`;
+            statusElement.classList.remove('status-pending');
+            statusElement.classList.add('status-error');
+        }
+    }
+}
+
+// Make investWithStrategy available globally
+window.investWithStrategy = investWithStrategy;
 
 // Copy strategy functionality
 function copyStrategy(strategyName) {

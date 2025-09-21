@@ -547,6 +547,29 @@ body::before {
     z-index: 1;
 }
 
+.invest-btn {
+    background: linear-gradient(45deg, var(--easter-blue), var(--neon-blue));
+    border: none;
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 25px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.3s ease;
+    margin-top: 1rem;
+    width: 100%;
+}
+
+.invest-btn {
+    background: linear-gradient(45deg, var(--green), var(--easter-blue));
+    font-weight: bold;
+}
+
+.invest-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0, 255, 128, 0.3);
+}
+
 .connect-wallet-btn::before {
     content: '';
     position: absolute;
@@ -982,4 +1005,65 @@ button:disabled {
     padding: 2px 5px;
     border-radius: 3px;
     opacity: 0.8;
+}
+
+/* Modal Styles */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(5px);
+}
+
+.modal-content {
+    background: linear-gradient(135deg, var(--light-gray), var(--dark-gray));
+    margin: 10% auto;
+    padding: 2rem;
+    border: 1px solid var(--border-gray);
+    border-radius: 15px;
+    width: 80%;
+    max-width: 500px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+.close-modal {
+    color: var(--electric-blue);
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.close-modal:hover {
+    color: var(--orange);
+    transform: scale(1.2);
+}
+
+.modal-info {
+    margin: 1.5rem 0;
+    padding: 1rem;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 10px;
+    border-left: 3px solid var(--electric-blue);
+}
+
+#modal-usdc-balance {
+    font-weight: bold;
+    color: var(--electric-blue);
+}
+
+.form-hint {
+    display: block;
+    margin-top: 0.5rem;
+    font-size: 0.8rem;
+    color: var(--light-gray);
+    font-style: italic;
 }

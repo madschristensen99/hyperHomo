@@ -298,9 +298,30 @@
                 </div>
             </div>
         </div>
+    
+    <!-- Investment Modal -->
+    <div id="investment-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal">&times;</span>
+            <h3>Invest in Strategy</h3>
+            <div class="modal-info">
+                <p>Strategy: <span id="modal-strategy-name"></span></p>
+                <p>Your USDC Balance: <span id="modal-usdc-balance">Loading...</span></p>
+            </div>
+            <form id="investment-form">
+                <div class="form-group">
+                    <label class="form-label">Amount to Invest (USDC)</label>
+                    <input type="number" id="investment-amount" class="form-input" placeholder="Enter whole number amount" step="1" min="1" required>
+                    <small class="form-hint">Please enter whole numbers only (e.g., 1, 5, 10)</small>
+                </div>
+                <input type="hidden" id="investment-strategy-id" value="">
+                <button type="submit" class="action-btn">Confirm Investment</button>
+            </form>
+            <div id="investment-status" class="deposit-status"></div>
+        </div>
     </div>
 
+    <script src="./ethers.min.js"></script>
     <script type="module" src="script.js"></script>
 </body>
 </html>
-

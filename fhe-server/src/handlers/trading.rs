@@ -17,9 +17,12 @@ pub struct Investor {
 pub struct TradingStrategy {
     pub name: String,
     pub owner: String, // this is the builder address
+    pub token: String,
     pub upper_bound: FheUint8,
     pub lower_bound: FheUint8,
     pub amount: u128,
+    pub is_open: bool,
+    pub is_long: bool,
     pub investors: Vec<Investor>, // should this be a map?
  }
 
@@ -40,7 +43,7 @@ impl TradingState {
     pub fn create_strategy(&mut self, name: String, owner: String, upper_bound: FheUint8, lower_bound: FheUint8) -> u128 {
         self.id_counter += 1;
         let strategy_id = self.id_counter;
-        self.strategies.insert(strategy_id, TradingStrategy { name, owner, upper_bound, lower_bound, amount: 0, investors: Vec::new() });
+        self.strategies.insert(strategy_id, TradingStrategy { name, owner, upper_bound, lower_bound, amount: 0, investors: Vec::new(), is_open: false, is_long: false, token: String::new() });
         strategy_id
     }
 
@@ -88,7 +91,10 @@ pub struct CreateStrategyRequest {
 pub struct GetStrategyResponse {
     name: String,
     owner: String,
+    token: String,
     amount: u128,
+    is_open: bool,
+    is_long: bool,
     investors: Vec<Investor>,
 }
 
@@ -118,7 +124,10 @@ pub async fn get_strategy_handler(State(state): State<AppState>, Path(id): Path<
         Ok(strategy) => Ok(Json(GetStrategyResponse {
             name: strategy.name,
             owner: strategy.owner,  
+            token: strategy.token,
             amount: strategy.amount,
+            is_open: strategy.is_open,
+            is_long: strategy.is_long,
             investors: strategy.investors,
         })),
         Err(error) => Err((StatusCode::NOT_FOUND, error))
@@ -130,7 +139,10 @@ pub async fn get_all_strategies_handler(State(state): State<AppState>) -> Json<V
     Json(strategies.into_iter().map(|strategy| GetStrategyResponse {
         name: strategy.name,
         owner: strategy.owner,
+        token: strategy.token,
         amount: strategy.amount,
+        is_open: strategy.is_open,
+        is_long: strategy.is_long,
         investors: strategy.investors,
     }).collect())
 }

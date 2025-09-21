@@ -1,23 +1,17 @@
 use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 use axum::{Json, extract::{State, Path}, http::StatusCode};
-use crate::handlers::trading::Position;
 use crate::handlers::trading::TradingState;
 use crate::AppState;
+use crate::handlers::trading::Investor;
 
 
 #[derive(Clone, Serialize)]
 pub struct Account {
     address: String, //eoa
     balance: u128, // in usdc??
+    strategy_ids: Vec<u128>,
 }
-
-// #[derive(Clone)]
-// pub struct Limit {
-//     owner: String,
-//     amoun
-// }
-
 
 #[derive(Clone)]
 pub struct AccountState {
@@ -32,7 +26,7 @@ impl AccountState {
     }
 
     pub fn create_account(&mut self, address: String, balance: u128) -> String {
-        let account = Account { address: address.clone(), balance };
+        let account = Account { address: address.clone(), balance, strategy_ids: Vec::new() };
         self.accounts.insert(address.clone(), account);
         format!("Account created with address: {}", address)
     }
@@ -52,6 +46,16 @@ impl AccountState {
             Some(account) => Ok(account.clone()),
             None => Err(format!("Account {} not found", address))
         }
+    }
+
+    pub fn update_account(&mut self, address: String, new_amount: u128) {
+        let mut account = self.accounts.get_mut(&address).unwrap();
+        account.balance = new_amount;
+    }
+
+    pub fn add_strategy_id(&mut self, address: String, strategy_id: u128) {
+        let mut account = self.accounts.get_mut(&address).unwrap();
+        account.strategy_ids.push(strategy_id);
     }
 }
 
@@ -104,17 +108,19 @@ pub async fn get_account_handler(State(state): State<AppState>, Path(address): P
 pub async fn invest_handler(State(state): State<AppState>, Json(payload): Json<InvestRequest>) -> Result<String, (StatusCode, String)> {
     let mut account_state = state.account_state.lock().unwrap();
     let mut trading_state = state.trading_state.lock().unwrap();
-    let account = account_state.get_account(payload.address.clone()).unwrap();
+    
+    // Properly handle the case where account doesn't exist
+    let account = match account_state.get_account(payload.address.clone()) {
+        Ok(account) => account,
+        Err(error) => return Err((StatusCode::NOT_FOUND, error))
+    };
+    
     if account.balance >= payload.amount {
-        let mut strategy = trading_state.get_strategy(payload.strategy_id);
-        let hold = Position {
-            strategy_id: payload.strategy_id,
-            position_owner: payload.address.clone(),
-            is_open: false,
-            is_long: false,
-            amount: payload.amount,
-        };
-        strategy.positions.push(hold);
+        let investor = Investor { address: payload.address.clone(), amount: payload.amount };
+        trading_state.add_investor(payload.strategy_id, investor);
+        trading_state.increase_amount(payload.strategy_id, payload.amount);
+        account_state.update_account(payload.address.clone(), account.balance - payload.amount);
+        account_state.add_strategy_id(payload.address.clone(), payload.strategy_id);
         Ok(format!("Invested {} into strategy {}", payload.amount, payload.strategy_id))
     } else {
         Err((StatusCode::BAD_REQUEST, format!("Insufficient balance")))

@@ -83,6 +83,7 @@ async fn main() {
         .route("/create_account", post(handlers::account::create_account_handler))
         .route("/deposit", post(handlers::account::deposit_handler))
         .route("/get_account/:address", get(handlers::account::get_account_handler))
+        .route("/invest", post(handlers::account::invest_handler))
 
         .layer(middleware::from_fn(cors_middleware))
         .with_state(state);

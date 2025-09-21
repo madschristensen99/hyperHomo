@@ -6,13 +6,9 @@ use crate::AppState;
 use std::collections::HashMap;
 use std::sync::Mutex;
 
-
-#[derive(Clone)]
-pub struct Position {
-    pub strategy_id: u128,
-    pub position_owner: String,
-    pub is_open: bool,
-    pub is_long: bool,
+#[derive(Clone, Serialize)]
+pub struct Investor {
+    pub address: String,
     pub amount: u128,
 }
 
@@ -22,7 +18,8 @@ pub struct TradingStrategy {
     pub owner: String, // this is the builder address
     pub upper_bound: FheUint8,
     pub lower_bound: FheUint8,
-    pub positions: Vec<Position>,
+    pub amount: u128,
+    pub investors: Vec<Investor>, // should this be a map?
  }
 
 #[derive(Clone)]
@@ -41,7 +38,7 @@ impl TradingState {
 
     pub fn create_strategy(&mut self, name: String, owner: String, upper_bound: FheUint8, lower_bound: FheUint8) {
         self.id_counter += 1;
-        self.strategies.insert(self.id_counter, TradingStrategy { name, owner, upper_bound, lower_bound, positions: Vec::new() });
+        self.strategies.insert(self.id_counter, TradingStrategy { name, owner, upper_bound, lower_bound, amount: 0, investors: Vec::new() });
     }
 
     pub fn get_strategy(&self, id: u128) -> TradingStrategy {
@@ -50,6 +47,14 @@ impl TradingState {
 
     pub fn get_all_strategies(&self) -> Vec<TradingStrategy> {
         self.strategies.values().cloned().collect()
+    }
+
+    pub fn increase_amount(&mut self, id: u128, amount: u128) {
+        self.strategies.get_mut(&id).unwrap().amount += amount;
+    }
+
+    pub fn add_investor(&mut self, id: u128, investor: Investor) {
+        self.strategies.get_mut(&id).unwrap().investors.push(investor);
     }
 }
 
@@ -65,6 +70,8 @@ pub struct CreateStrategyRequest {
 pub struct GetStrategyResponse {
     name: String,
     owner: String,
+    amount: u128,
+    investors: Vec<Investor>,
 }
 
 #[derive(Deserialize)]
@@ -93,6 +100,8 @@ pub async fn get_strategy_handler(State(state): State<AppState>, Path(id): Path<
     Json(GetStrategyResponse {
         name: strategy.name,
         owner: strategy.owner,  
+        amount: strategy.amount,
+        investors: strategy.investors,
     })
 }
 
@@ -101,6 +110,8 @@ pub async fn get_all_strategies_handler(State(state): State<AppState>) -> Json<V
     Json(strategies.into_iter().map(|strategy| GetStrategyResponse {
         name: strategy.name,
         owner: strategy.owner,
+        amount: strategy.amount,
+        investors: strategy.investors,
     }).collect())
 }
 

@@ -332,9 +332,27 @@ body::before {
 }
 
 .strategy-performance {
-    font-size: 1.1rem;
+    font-size: 0.9rem;
+    color: var(--electric-blue);
     margin-bottom: 1rem;
-    color: var(--orange);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.owned-strategy {
+    border-color: var(--electric-blue);
+    box-shadow: 0 0 15px rgba(0, 191, 255, 0.3);
+}
+
+.owner-badge {
+    background: linear-gradient(45deg, var(--easter-blue), var(--neon-blue));
+    color: white;
+    padding: 0.2rem 0.5rem;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    font-weight: bold;
+    animation: pulse-blue 2s infinite;
 }
 
 .copy-btn {
@@ -431,6 +449,13 @@ body::before {
     background-color: rgba(137, 207, 240, 0.05);
 }
 
+/* Style for dropdown options */
+.form-select option {
+    background-color: var(--dark-gray);
+    color: var(--white);
+    padding: 10px;
+}
+
 .bounds-container {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -477,12 +502,220 @@ body::before {
 }
 
 /* Account Page Styles */
+.wallet-connect-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 400px;
+    margin: 2rem 0;
+}
+
+.wallet-connect-message {
+    text-align: center;
+    background: linear-gradient(135deg, var(--light-gray), var(--dark-gray));
+    border: 1px solid var(--border-gray);
+    border-radius: 15px;
+    padding: 3rem;
+    max-width: 500px;
+    width: 100%;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    animation: fadeIn 0.5s ease-in-out;
+}
+
+.wallet-icon {
+    font-size: 4rem;
+    margin-bottom: 1.5rem;
+    background: linear-gradient(45deg, var(--pink), var(--easter-blue), var(--purple), var(--green), var(--yellow), var(--orange));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: rainbow-shift 8s linear infinite;
+}
+
+.connect-wallet-btn {
+    background: linear-gradient(45deg, var(--easter-blue), var(--neon-blue));
+    border: none;
+    color: white;
+    padding: 1rem 2rem;
+    border-radius: 25px;
+    cursor: pointer;
+    font-size: 1.1rem;
+    transition: all 0.3s ease;
+    margin-top: 2rem;
+    position: relative;
+    overflow: hidden;
+    z-index: 1;
+}
+
+.connect-wallet-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(45deg, var(--pink), var(--easter-blue), var(--purple), var(--green), var(--yellow), var(--orange));
+    opacity: 0;
+    z-index: -1;
+    transition: opacity 0.3s ease;
+}
+
+.connect-wallet-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(137, 207, 240, 0.4);
+}
+
+.connect-wallet-btn:hover::before {
+    opacity: 1;
+    animation: rainbow-shift 3s linear infinite;
+}
+
+.account-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+    background: linear-gradient(135deg, var(--light-gray), var(--dark-gray));
+    border: 1px solid var(--border-gray);
+    border-radius: 15px;
+    padding: 1rem 2rem;
+}
+
+.account-address {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    font-family: monospace;
+    font-size: 1.1rem;
+    color: var(--easter-blue);
+}
+
+.copy-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1.2rem;
+    color: var(--easter-blue);
+    transition: all 0.3s ease;
+}
+
+.disconnect-btn {
+    background: linear-gradient(45deg, #ff6b6b, #ff8e8e);
+    border: none;
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 25px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.3s ease;
+}
+
+.disconnect-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(255, 107, 107, 0.4);
+}
+
 .account-section {
     background: linear-gradient(135deg, var(--light-gray), var(--dark-gray));
     border: 1px solid var(--border-gray);
     border-radius: 15px;
     padding: 2rem;
     margin-bottom: 2rem;
+}
+
+.no-data-message {
+    text-align: center;
+    padding: 2rem;
+    color: #888;
+    font-style: italic;
+}
+
+/* Deposit Form Styles */
+.deposit-container {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.deposit-info {
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.deposit-balance {
+    background: linear-gradient(135deg, var(--light-gray), var(--dark-gray));
+    border: 1px solid var(--border-gray);
+    border-radius: 10px;
+    padding: 1rem;
+    flex: 1;
+    min-width: 200px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.balance-label {
+    font-size: 0.9rem;
+    color: #ccc;
+}
+
+.balance-value {
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: var(--electric-blue);
+}
+
+.deposit-form {
+    background: linear-gradient(135deg, rgba(26, 26, 26, 0.8), rgba(51, 51, 51, 0.8));
+    border: 1px solid var(--border-gray);
+    border-radius: 15px;
+    padding: 1.5rem;
+}
+
+.deposit-actions {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1.5rem;
+}
+
+.deposit-actions button {
+    flex: 1;
+}
+
+.deposit-status {
+    margin-top: 1rem;
+    padding: 0.8rem;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    display: none;
+}
+
+.status-pending {
+    display: block;
+    background-color: rgba(255, 193, 7, 0.2);
+    border: 1px solid #ffc107;
+    color: #ffc107;
+}
+
+.status-success {
+    display: block;
+    background-color: rgba(40, 167, 69, 0.2);
+    border: 1px solid #28a745;
+    color: #28a745;
+}
+
+.status-error {
+    display: block;
+    background-color: rgba(220, 53, 69, 0.2);
+    border: 1px solid #dc3545;
+    color: #dc3545;
+}
+
+button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
 }
 
 .balance-card {
@@ -723,3 +956,4 @@ body::before {
     cursor: pointer;
     box-shadow: 0 0 5px rgba(137, 207, 240, 0.3);
 }
+

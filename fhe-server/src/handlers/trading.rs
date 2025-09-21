@@ -8,13 +8,22 @@ use std::sync::Mutex;
 
 
 #[derive(Clone)]
+pub struct Position {
+    strategy_id: u128,
+    position_owner: String,
+    is_open: bool,
+    is_long: bool,
+    amount: u128,
+}
+
+#[derive(Clone)]
 pub struct TradingStrategy {
     name: String,
     owner: String, // this is the builder address
     upper_bound: FheUint8,
     lower_bound: FheUint8,
+    positions: Vec<Position>,
  }
-
 
 #[derive(Clone)]
 pub struct TradingState {
@@ -32,7 +41,7 @@ impl TradingState {
 
     pub fn create_strategy(&mut self, name: String, owner: String, upper_bound: FheUint8, lower_bound: FheUint8) {
         self.id_counter += 1;
-        self.strategies.insert(self.id_counter, TradingStrategy { name, owner, upper_bound, lower_bound });
+        self.strategies.insert(self.id_counter, TradingStrategy { name, owner, upper_bound, lower_bound, positions: Vec::new() });
     }
 
     pub fn get_strategy(&self, id: u128) -> TradingStrategy {

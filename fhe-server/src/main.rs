@@ -12,6 +12,7 @@ use tfhe::prelude::*;
 use tfhe::{ServerKey, ClientKey};
 mod fhe;
 mod handlers;
+use crate::handlers::account::AccountState;
 use handlers::trading::TradingState;
 use serde::Deserialize;
 use std::sync::Mutex;
@@ -21,7 +22,8 @@ use std::sync::Mutex;
 struct AppState {
     server_key: Arc<ServerKey>,
     client_key: Arc<ClientKey>,
-    trading_state: Arc<Mutex<TradingState>>,  // Wrap in Mutex
+    trading_state: Arc<Mutex<TradingState>>,
+    account_state: Arc<Mutex<AccountState>>,
 }
 
 pub trait KeyAccess {
@@ -60,13 +62,14 @@ async fn main() {
     }
 
     let trading_state = TradingState::new();
+    let account_state = AccountState::new();
 
     let state = AppState { 
         server_key: Arc::new(fhe::key_gen::load_server_key().unwrap()),
         client_key: Arc::new(fhe::key_gen::load_client_key().unwrap()),
         trading_state: Arc::new(Mutex::new(trading_state)),
+        account_state: Arc::new(Mutex::new(account_state)),
     };
-
 
     let app = Router::new()
         .route("/", get(hello_world))
@@ -75,6 +78,9 @@ async fn main() {
         .route("/check_short_strategy", post(handlers::trading::check_short_strategy_handler))
         .route("/get_strategy/:id", get(handlers::trading::get_strategy_handler))
         .route("/get_all_strategies", get(handlers::trading::get_all_strategies_handler))
+        .route("/create_account", post(handlers::account::create_account_handler))
+        .route("/deposit", post(handlers::account::deposit_handler))
+        .route("/get_account/:address", get(handlers::account::get_account_handler))
         .with_state(state);
 
     

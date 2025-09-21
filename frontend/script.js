@@ -290,13 +290,30 @@ async function checkUsdcAllowance() {
     if (!usdcContract || !currentAccount) return false;
     
     try {
+        console.log('Checking USDC allowance for', currentAccount);
         const allowance = await usdcContract.allowance(currentAccount, VAULT_CONTRACT.address);
-        const minAllowance = ethers.parseUnits('1', USDC_CONTRACT.decimals); // At least 1 USDC
+        console.log('Current allowance:', allowance.toString());
         
-        // Compare as BigInt or numbers instead of using gte
-        const allowanceBigInt = BigInt(allowance.toString());
-        const minAllowanceBigInt = BigInt(minAllowance.toString());
-        isUsdcApproved = allowanceBigInt >= minAllowanceBigInt;
+        const minAllowance = ethers.parseUnits('1', USDC_CONTRACT.decimals); // At least 1 USDC
+        console.log('Minimum required allowance:', minAllowance.toString());
+        
+        // Convert to strings first to avoid any issues with BigInt
+        const allowanceStr = allowance.toString();
+        const minAllowanceStr = minAllowance.toString();
+        
+        // Now safely convert to BigInt for comparison
+        try {
+            const allowanceBigInt = BigInt(allowanceStr);
+            const minAllowanceBigInt = BigInt(minAllowanceStr);
+            isUsdcApproved = allowanceBigInt >= minAllowanceBigInt;
+            console.log('Is USDC approved?', isUsdcApproved);
+        } catch (bigIntError) {
+            console.error('Error converting to BigInt:', bigIntError);
+            // Fallback to string comparison
+            isUsdcApproved = allowanceStr.length > minAllowanceStr.length || 
+                            (allowanceStr.length === minAllowanceStr.length && allowanceStr >= minAllowanceStr);
+            console.log('Fallback approval check result:', isUsdcApproved);
+        }
         
         return isUsdcApproved;
     } catch (error) {
@@ -315,19 +332,44 @@ async function approveUsdc() {
         // Set status to pending
         updateDepositStatus('Approving USDC...', 'pending');
         
+        // For debugging
+        console.log('USDC contract address:', USDC_CONTRACT.address);
+        console.log('Vault contract address:', VAULT_CONTRACT.address);
+        console.log('Current account:', currentAccount);
+        
+        // Check current allowance first
+        const currentAllowance = await usdcContract.allowance(currentAccount, VAULT_CONTRACT.address);
+        console.log('Current allowance:', currentAllowance.toString());
+        
         // Approve a large amount (effectively unlimited)
         const maxAmount = ethers.parseUnits('1000000', USDC_CONTRACT.decimals);
-        const tx = await usdcContract.approve(VAULT_CONTRACT.address, maxAmount);
+        console.log('Approving amount:', maxAmount.toString());
+        
+        // Get gas estimate
+        try {
+            const gasEstimate = await usdcContract.approve.estimateGas(VAULT_CONTRACT.address, maxAmount);
+            console.log('Gas estimate for approval:', gasEstimate.toString());
+        } catch (gasError) {
+            console.error('Error estimating gas for approval:', gasError);
+            // Continue anyway, the transaction might still work
+        }
+        
+        // Approve with explicit gas limit
+        const tx = await usdcContract.approve(VAULT_CONTRACT.address, maxAmount, {
+            gasLimit: ethers.parseUnits('100000', 'wei') // Provide a higher gas limit
+        });
         
         // Wait for transaction to be mined
         updateDepositStatus('Waiting for approval transaction...', 'pending');
         await tx.wait();
         
+        // Verify approval was successful
+        const newAllowance = await usdcContract.allowance(currentAccount, VAULT_CONTRACT.address);
+        console.log('New allowance after approval:', newAllowance.toString());
+        
         // Update status
         isUsdcApproved = true;
         updateDepositStatus('USDC approved successfully!', 'success');
-        document.getElementById('deposit-usdc-btn').disabled = false;
-        document.getElementById('approve-usdc-btn').disabled = true;
         
         return true;
     } catch (error) {
@@ -339,19 +381,47 @@ async function approveUsdc() {
 
 // Deposit USDC to vault
 async function depositUsdc(amount) {
-    if (!vaultContract || !currentAccount || !isUsdcApproved) {
-        throw new Error('Vault contract not initialized, wallet not connected, or USDC not approved');
+    if (!vaultContract || !currentAccount) {
+        throw new Error('Vault contract not initialized or wallet not connected');
     }
     
     try {
+        // Double-check approval status
+        const isApproved = await checkUsdcAllowance();
+        if (!isApproved) {
+            console.log('USDC not approved yet, approving first...');
+            await approveUsdc();
+            // Verify approval was successful
+            const verifyApproval = await checkUsdcAllowance();
+            if (!verifyApproval) {
+                throw new Error('USDC approval failed. Please try again.');
+            }
+        }
+        
         // Convert amount to wei
         const amountInWei = ethers.parseUnits(amount.toString(), USDC_CONTRACT.decimals);
+        console.log('Depositing amount in wei:', amountInWei.toString());
         
         // Set status to pending
         updateDepositStatus('Depositing USDC...', 'pending');
         
-        // Deposit USDC to blockchain
-        const tx = await vaultContract.deposit(amountInWei);
+        // Get gas estimate
+        try {
+            const gasEstimate = await vaultContract.deposit.estimateGas(amountInWei);
+            console.log('Gas estimate for deposit:', gasEstimate.toString());
+        } catch (gasError) {
+            console.error('Error estimating gas:', gasError);
+            // Continue anyway, the transaction might still work
+        }
+        
+        // For debugging
+        console.log('Vault contract address:', VAULT_CONTRACT.address);
+        console.log('Current account:', currentAccount);
+        
+        // Deposit USDC to blockchain with explicit gas limit
+        const tx = await vaultContract.deposit(amountInWei, {
+            gasLimit: ethers.parseUnits('100000', 'wei') // Provide a higher gas limit
+        });
         
         // Wait for transaction to be mined
         updateDepositStatus('Waiting for deposit transaction...', 'pending');
@@ -505,9 +575,7 @@ async function updateBalances() {
             console.error('Error checking USDC allowance:', error);
         }
         
-        // Update UI
-        document.getElementById('deposit-usdc-btn').disabled = !isApproved;
-        document.getElementById('approve-usdc-btn').disabled = isApproved;
+        // No need to update button states anymore since we combined the functionality
     } catch (error) {
         console.error('Error updating balances:', error);
     }
@@ -569,6 +637,58 @@ async function connectWallet() {
             
             // Update UI to show connected state
             updateWalletUI(true);
+            
+            // Check if account exists on FHE server, if not create it
+            try {
+                const accountResponse = await fetch(`${API_BASE_URL}/get_account/${currentAccount}`);
+                
+                if (!accountResponse.ok) {
+                    // Account doesn't exist, create it with signature
+                    const message = `I authorize the creation of a HyperHomo account for address: ${currentAccount}`;
+                    
+                    // Show signing message to user
+                    const statusElement = document.getElementById('deposit-status');
+                    if (statusElement) {
+                        statusElement.textContent = 'Please sign the message to create your account...';
+                        statusElement.classList.remove('status-pending', 'status-success', 'status-error', 'status-warning');
+                        statusElement.classList.add('status-pending');
+                        statusElement.style.display = 'block';
+                    }
+                    
+                    // Get signature
+                    const signResult = await signMessage(message);
+                    
+                    // Create account with signature
+                    const createAccountResponse = await fetch(`${API_BASE_URL}/create_account`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            address: currentAccount,
+                            balance: 0,
+                            signature: signResult.signature
+                        })
+                    });
+                    
+                    if (createAccountResponse.ok) {
+                        if (statusElement) {
+                            statusElement.textContent = 'Account created successfully!';
+                            statusElement.classList.remove('status-pending');
+                            statusElement.classList.add('status-success');
+                            
+                            // Hide the notification after 3 seconds
+                            setTimeout(() => {
+                                statusElement.style.display = 'none';
+                            }, 3000);
+                        }
+                    } else {
+                        console.error('Failed to create account:', await createAccountResponse.text());
+                    }
+                }
+            } catch (error) {
+                console.error('Error checking/creating account:', error);
+            }
             
             // Get and display account information
             await getAccountInfo();
@@ -681,15 +801,17 @@ async function getAccountInfo() {
             console.error('Error fetching FHE account data:', fheError);
         }
         
-        // Calculate balances based on data source
-        let totalBalance, inPositions, availableBalance, pnl;
+        // Calculate balances based on FHE server data or set to zero
+        let totalBalance = 0;
+        let inPositions = 0;
+        let availableBalance = 0;
+        let pnl = '0%';
         
         if (fheAccountData) {
             // Use FHE server data
             totalBalance = fheBalance;
             
-            // Get positions from FHE server (if available) or estimate
-            // In a real app, we would fetch actual positions from the FHE server
+            // Get positions from FHE server
             const positionsResponse = await fetch(`${API_BASE_URL}/get_all_strategies`)
                 .then(res => res.ok ? res.json() : [])
                 .catch(() => []);
@@ -698,23 +820,16 @@ async function getAccountInfo() {
             let positionsValue = 0;
             if (Array.isArray(positionsResponse)) {
                 const userStrategies = positionsResponse.filter(s => s.owner === currentAccount);
-                // In a real app, we would calculate the actual value of each strategy
-                positionsValue = userStrategies.length * (totalBalance * 0.15); // Estimate position value
+                // Count the number of strategies as position value for now
+                positionsValue = userStrategies.length > 0 ? (totalBalance * 0.2) : 0;
             }
             
-            // If we have no positions data, estimate based on balance
-            inPositions = positionsValue > 0 ? positionsValue : (totalBalance * 0.4);
+            // Set positions and available balance
+            inPositions = positionsValue;
             availableBalance = totalBalance - inPositions;
             
-            // Calculate P&L based on recent deposits
-            // In a real app, this would be calculated from actual trade history
-            pnl = '+18.7%'; // FHE server P&L (would be calculated from real data)
-        } else {
-            // Use mock data based on ETH balance
-            totalBalance = parseFloat(ethBalance) * 2000;
-            inPositions = totalBalance * 0.7;
-            availableBalance = totalBalance - inPositions;
-            pnl = '+12.5%';
+            // Set P&L to zero for now - would be calculated from actual trade history
+            pnl = '0%';
         }
         
         // Update UI with account information
@@ -739,8 +854,8 @@ async function getAccountInfo() {
             }
         }
         
-        // Load trades - use different mock data based on whether we have FHE data
-        loadMockTrades(fheAccountData !== null);
+        // Load trades (currently shows no trades)
+        loadMockTrades();
         
         // Update USDC and deposited balances
         await updateBalances();
@@ -749,47 +864,14 @@ async function getAccountInfo() {
     }
 }
 
-// Load mock trades for demonstration
-function loadMockTrades(useFheData = false) {
-    // Different mock trades based on data source
-    const mockTrades = useFheData ? [
-        // FHE-based trades (more recent and with different values)
-        { pair: 'BTC-USD', side: 'LONG', size: '0.75 BTC', price: '$48,932', pnl: '+$2,347', time: '30 minutes ago', profit: true },
-        { pair: 'ETH-USD', side: 'LONG', size: '5.2 ETH', price: '$3,124', pnl: '+$789', time: '2 hours ago', profit: true },
-        { pair: 'SOL-USD', side: 'SHORT', size: '25 SOL', price: '$142.75', pnl: '+$1,250', time: '5 hours ago', profit: true },
-        { pair: 'AVAX-USD', side: 'SHORT', size: '100 AVAX', price: '$35.42', pnl: '-$178', time: '1 day ago', profit: false },
-        { pair: 'MATIC-USD', side: 'LONG', size: '2000 MATIC', price: '$1.24', pnl: '+$560', time: '2 days ago', profit: true }
-    ] : [
-        // Regular mock trades
-        { pair: 'BTC-USD', side: 'LONG', size: '0.5 BTC', price: '$43,247', pnl: '+$1,247', time: '2 hours ago', profit: true },
-        { pair: 'ETH-USD', side: 'SHORT', size: '2.3 ETH', price: '$2,847', pnl: '-$389', time: '5 hours ago', profit: false },
-        { pair: 'SOL-USD', side: 'LONG', size: '15 SOL', price: '$127.45', pnl: '+$567', time: '1 day ago', profit: true },
-        { pair: 'AVAX-USD', side: 'LONG', size: '50 AVAX', price: '$32.78', pnl: '+$234', time: '2 days ago', profit: true }
-    ];
-    
+// Load trades (currently shows no trades)
+function loadMockTrades() {
     const tradesTableBody = document.getElementById('trades-table-body');
-    tradesTableBody.innerHTML = '';
-    
-    mockTrades.forEach(trade => {
-        const row = document.createElement('tr');
-        row.innerHTML = `
-            <td>${trade.pair}</td>
-            <td>${trade.side}</td>
-            <td>${trade.size}</td>
-            <td>${trade.price}</td>
-            <td class="${trade.profit ? 'profit' : 'loss'}">${trade.pnl}</td>
-            <td>${trade.time}</td>
-        `;
-        tradesTableBody.appendChild(row);
-    });
-    
-    // If using FHE data, add a small indicator to the table
-    if (useFheData) {
-        const firstRow = tradesTableBody.querySelector('tr');
-        if (firstRow) {
-            firstRow.classList.add('fhe-data-row');
-        }
-    }
+    tradesTableBody.innerHTML = `
+        <tr class="no-trades-row">
+            <td colspan="6" class="no-data-message">No trades yet. Place an order to see your trades here.</td>
+        </tr>
+    `;
 }
 
 // Copy wallet address to clipboard
@@ -1097,23 +1179,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // Add event listeners for USDC deposit form
-    const approveUsdcBtn = document.getElementById('approve-usdc-btn');
-    if (approveUsdcBtn) {
-        approveUsdcBtn.addEventListener('click', async function() {
-            if (!isWalletConnected) {
-                alert('Please connect your wallet first');
-                return;
-            }
-            
-            try {
-                this.disabled = true;
-                await approveUsdc();
-            } catch (error) {
-                console.error('Error in approve button handler:', error);
-                this.disabled = false;
-            }
-        });
-    }
     
     const depositForm = document.getElementById('deposit-form');
     if (depositForm) {
@@ -1122,11 +1187,6 @@ document.addEventListener('DOMContentLoaded', function() {
             
             if (!isWalletConnected) {
                 alert('Please connect your wallet first');
-                return;
-            }
-            
-            if (!isUsdcApproved) {
-                alert('Please approve USDC spending first');
                 return;
             }
             
@@ -1142,12 +1202,34 @@ document.addEventListener('DOMContentLoaded', function() {
             
             try {
                 depositBtn.disabled = true;
+                depositBtn.textContent = 'Processing...';
+                
+                // Check if USDC is approved
+                const isApproved = await checkUsdcAllowance();
+                
+                // If not approved, approve it first
+                if (!isApproved) {
+                    updateDepositStatus('Approving USDC...', 'pending');
+                    try {
+                        await approveUsdc();
+                    } catch (approveError) {
+                        console.error('Error approving USDC:', approveError);
+                        updateDepositStatus(`Error approving USDC: ${approveError.message}`, 'error');
+                        depositBtn.disabled = false;
+                        depositBtn.textContent = 'Deposit USDC';
+                        return;
+                    }
+                }
+                
+                // Now deposit
                 await depositUsdc(amount);
                 amountInput.value = ''; // Clear the input after successful deposit
             } catch (error) {
                 console.error('Error in deposit form handler:', error);
+                updateDepositStatus(`Error: ${error.message}`, 'error');
             } finally {
-                depositBtn.disabled = !isUsdcApproved;
+                depositBtn.disabled = false;
+                depositBtn.textContent = 'Deposit USDC';
             }
         });
     }

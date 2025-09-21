@@ -1063,6 +1063,10 @@ async function loadStrategies() {
             const strategyCard = document.createElement('div');
             strategyCard.className = 'strategy-card';
             
+            // Log the strategy ID and index for debugging
+            console.log(`Strategy ${strategy.name}: ID=${strategy.id}, Index=${index}`);
+
+            
             // Check if this strategy is owned by the connected wallet
             const isOwnedByUser = isWalletConnected && currentAccount && 
                                   strategy.owner.toLowerCase() === currentAccount.toLowerCase();
@@ -1078,7 +1082,7 @@ async function loadStrategies() {
                     Owner: ${truncateAddress(strategy.owner)}
                     ${isOwnedByUser ? '<span class="owner-badge">Your Strategy</span>' : ''}
                 </div>
-                <button class="invest-btn" onclick="investWithStrategy(${index + 1}, '${strategy.name}')">Invest with Strategy</button>
+                <button class="invest-btn" onclick="investWithStrategy(${strategy.id}, '${strategy.name}')">Invest with Strategy</button>
             `;
             strategyGrid.appendChild(strategyCard);
         });

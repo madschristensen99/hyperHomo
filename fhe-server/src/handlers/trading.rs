@@ -90,6 +90,7 @@ pub struct CreateStrategyRequest {
 
 #[derive(Serialize)]
 pub struct GetStrategyResponse {
+    id: u128,  // Add strategy ID field
     name: String,
     owner: String,
     token: String,
@@ -123,6 +124,7 @@ pub async fn get_strategy_handler(State(state): State<AppState>, Path(id): Path<
     let trading_state = state.trading_state.lock().unwrap();
     match trading_state.get_strategy(id) {
         Ok(strategy) => Ok(Json(GetStrategyResponse {
+            id: id,  // Include the ID in the response
             name: strategy.name,
             owner: strategy.owner,  
             token: strategy.token,
@@ -136,16 +138,24 @@ pub async fn get_strategy_handler(State(state): State<AppState>, Path(id): Path<
 }
 
 pub async fn get_all_strategies_handler(State(state): State<AppState>) -> Json<Vec<GetStrategyResponse>> {
-    let strategies = state.trading_state.lock().unwrap().get_all_strategies();
-    Json(strategies.into_iter().map(|strategy| GetStrategyResponse {
-        name: strategy.name,
-        owner: strategy.owner,
-        token: strategy.token,
-        amount: strategy.amount,
-        is_open: strategy.is_open,
-        is_long: strategy.is_long,
-        investors: strategy.investors,
-    }).collect())
+    let trading_state = state.trading_state.lock().unwrap();
+    let mut responses = Vec::new();
+    
+    // Iterate through the strategies map to get both ID and strategy
+    for (id, strategy) in &trading_state.strategies {
+        responses.push(GetStrategyResponse {
+            id: *id,
+            name: strategy.name.clone(),
+            owner: strategy.owner.clone(),
+            token: strategy.token.clone(),
+            amount: strategy.amount,
+            is_open: strategy.is_open,
+            is_long: strategy.is_long,
+            investors: strategy.investors.clone(),
+        });
+    }
+    
+    Json(responses)
 }
 
 pub async fn check_long_strategy_handler(State(state): State<AppState>, Json(payload): Json<CheckLongStrategyRequest>) -> Result<String, (StatusCode, String)> {

@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hyper Homo - Encrypted Trading Strategies</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --electric-blue: #0080FF;
+            --orange: #FF8C00;
+            --white: #FFFFFF;
+            --black: #000000;
+            --dark-gray: #1a1a1a;
+            --light-gray: #333;
+            --border-gray: #444;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, var(--black) 0%, var(--dark-gray) 100%);
+            color: var(--white);
+            min-height: 100vh;
+        }
+
+        .navbar {
+            background: rgba(26, 26, 26, 0.95);
+            backdrop-filter: blur(10px);
+            border-bottom: 2px solid var(--electric-blue);
+            padding: 1rem 2rem;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 1.8rem;
+            font-weight: bold;
+            background: linear-gradient(45deg, var(--electric-blue), var(--orange));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+        }
+
+        .nav-link {
+            background: none;
+            border: none;
+            color: var(--white);
+            padding: 0.8rem 1.5rem;
+            cursor: pointer;
+            border-radius: 25px;
+            transition: all 0.3s ease;
+            font-size: 1rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .nav-link:hover {
+            background: linear-gradient(45deg, var(--electric-blue), var(--orange));
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 128, 255, 0.3);
+        }
+
+        .nav-link.active {
+            background: linear-gradient(45deg, var(--electric-blue), var(--orange));
+            box-shadow: 0 0 20px rgba(0, 128, 255, 0.5);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .page {
+            display: none;
+            animation: fadeIn 0.5s ease-in-out;
+        }
+
+        .page.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Landing Page Styles */
+        .hero {
+            text-align: center;
+            padding: 4rem 0;
+            background: radial-gradient(ellipse at center, rgba(0, 128, 255, 0.1) 0%, transparent 70%);
+            margin-bottom: 3rem;
+        }
+
+        .hero h1 {
+            font-size: 3.5rem;
+            margin-bottom: 1rem;
+            background: linear-gradient(45deg, var(--electric-blue), var(--orange));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .hero p {
+            font-size: 1.3rem;
+            color: #ccc;
+            max-width: 800px;
+            margin: 0 auto;
+            line-height: 1.6;
+        }
+
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-top: 3rem;
+        }
+
+        .feature-card {
+            background: linear-gradient(135deg, var(--light-gray), var(--dark-gray));
+            border: 1px solid var(--border-gray);
+            border-radius: 15px;
+            padding: 2rem;
+            text-align: center;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .feature-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(0, 128, 255, 0.1), transparent);
+            transition: left 0.5s ease;
+        }
+
+        .feature-card:hover::before {
+            left: 100%;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0, 128, 255, 0.2);
+            border-color: var(--electric-blue);
+        }
+
+        .feature-icon {
+            font-size: 3rem;
+            color: var(--orange);
+            margin-bottom: 1rem;
+        }
+
+        /* Strategy Card Styles */
+        .strategy-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 2rem;
+            margin-top: 2rem;
+        }
+
+        .strategy-card {
+            background: linear-gradient(135deg, var(--light-gray), var(--dark-gray));
+            border: 1px solid var(--border-gray);
+            border-radius: 15px;
+            padding: 1.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .strategy-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0, 128, 255, 0.2);
+            border-color: var(--electric-blue);
+        }
+
+        .strategy-image {
+            width: 100%;
+            height: 120px;
+            background: linear-gradient(45deg, var(--electric-blue), var(--orange));
+            border-radius: 10px;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            color: white;
+        }
+
+        .strategy-name {
+            font-size: 1.3rem;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+            color: var(--electric-blue);
+        }
+
+        .strategy-performance {
+            font-size: 1.1rem;
+            margin-bottom: 1rem;
+            color: var(--orange);
+        }
+
+        .copy-btn {
+            background: linear-gradient(45deg, var(--electric-blue), var(--orange));
+            border: none;
+            color: white;
+            padding: 0.8rem 1.5rem;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            width: 100%;
+        }
+
+        .copy-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 128, 255, 0.4);
+        }
+
+        /* Form Styles */
+        .form-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: linear-gradient(135deg, var(--light-gray), var(--dark-gray));
+            border: 1px solid var(--border-gray);
+            border-radius: 15px;
+            padding: 2rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: var(--electric-blue);
+            font-weight: bold;
+        }
+
+        .form-input, .form-select {
+            width: 100%;
+            padding: 0.8rem;
+            border: 1px solid var(--border-gray);
+            border-radius: 8px;
+            background: var(--dark-gray);
+            color: var(--white);
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .form-input:focus, .form-select:focus {
+            outline: none;
+            border-color: var(--electric-blue);
+            box-shadow: 0 0 10px rgba(0, 128, 255, 0.3);
+        }
+
+        .bounds-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        .submit-btn {
+            background: linear-gradient(45deg, var(--electric-blue), var(--orange));
+            border: none;
+            color: white;
+            padding: 1rem 2rem;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 1.1rem;
+            transition: all 0.3s ease;
+            width: 100%;
+            margin-top: 1rem;
+        }
+
+        .submit-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 128, 255, 0.4);
+        }
+
+        /* Account Page Styles */
+        .account-section {
+            background: linear-gradient(135deg, var(--light-gray), var(--dark-gray));
+            border: 1px solid var(--border-gray);
+            border-radius: 15px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .balance-card {
+            text-align: center;
+            padding: 2rem;
+            background: radial-gradient(ellipse at center, rgba(0, 128, 255, 0.1) 0%, transparent 70%);
+            border-radius: 10px;
+            margin-bottom: 2rem;
+        }
+
+        .balance-amount {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: var(--orange);
+            margin-bottom: 0.5rem;
+        }
+
+        .trades-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+
+        .trades-table th,
+        .trades-table td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border-gray);
+        }
+
+        .trades-table th {
+            background: var(--dark-gray);
+            color: var(--electric-blue);
+            font-weight: bold;
+        }
+
+        .profit {
+            color: #4CAF50;
+        }
+
+        .loss {
+            color: #F44336;
+        }
+
+        .section-title {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+            color: var(--electric-blue);
+            text-align: center;
+        }
+
+        .section-subtitle {
+            font-size: 1.5rem;
+            margin-bottom: 1.5rem;
+            color: var(--orange);
+        }
+
+        @media (max-width: 768px) {
+            .navbar {
+                flex-direction: column;
+                gap: 1rem;
+                padding: 1rem;
+            }
+
+            .nav-links {
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+
+            .hero h1 {
+                font-size: 2.5rem;
+            }
+
+            .container {
+                padding: 1rem;
+            }
+
+            .bounds-container {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="logo">Hyper Homo</div>
+        <div class="nav-links">
+            <button class="nav-link active" onclick="showPage('landing')">Home</button>
+            <button class="nav-link" onclick="showPage('strategies')">Strategies</button>
+            <button class="nav-link" onclick="showPage('deploy')">Deploy Strategy</button>
+            <button class="nav-link" onclick="showPage('order')">Place Order</button>
+            <button class="nav-link" onclick="showPage('account')">Account</button>
+        </div>
+    </nav>
+
+    <div class="container">
+        <!-- Landing Page -->
+        <div id="landing" class="page active">
+            <div class="hero">
+                <h1>Hyper Homo</h1>
+                <p>Revolutionary encrypted trading strategies for Hyperliquid perpetuals, powered by cutting-edge Fully Homomorphic Encryption technology. Trade with complete privacy and security while maintaining optimal performance.</p>
+            </div>
+            
+            <div class="features">
+                <div class="feature-card">
+                    <div class="feature-icon">🔒</div>
+                    <h3>Fully Homomorphic Encryption</h3>
+                    <p>Execute complex trading strategies while keeping your data completely encrypted and private. No one can see your trading logic, not even us.</p>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">⚡</div>
+                    <h3>Hyperliquid Integration</h3>
+                    <p>Seamlessly trade perpetuals on Hyperliquid with lightning-fast execution and minimal slippage for maximum profit potential.</p>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">🎯</div>
+                    <h3>Advanced Strategies</h3>
+                    <p>Deploy sophisticated trading algorithms with customizable parameters, risk management, and automated execution.</p>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">📈</div>
+                    <h3>Performance Analytics</h3>
+                    <p>Track your strategy performance with detailed metrics, backtesting results, and real-time monitoring dashboards.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Strategies Page -->
+        <div id="strategies" class="page">
+            <h2 class="section-title">Available Strategies</h2>
+            
+            <div class="strategy-grid">
+                <div class="strategy-card">
+                    <div class="strategy-image">📊</div>
+                    <div class="strategy-name">Momentum Breakout</div>
+                    <div class="strategy-performance">Performance: +127.3%</div>
+                    <button class="copy-btn" onclick="copyStrategy('momentum')">Copy Strategy</button>
+                </div>
+                
+                <div class="strategy-card">
+                    <div class="strategy-image">🌊</div>
+                    <div class="strategy-name">Mean Reversion</div>
+                    <div class="strategy-performance">Performance: +89.7%</div>
+                    <button class="copy-btn" onclick="copyStrategy('reversion')">Copy Strategy</button>
+                </div>
+                
+                <div class="strategy-card">
+                    <div class="strategy-image">⚡</div>
+                    <div class="strategy-name">Scalping Bot</div>
+                    <div class="strategy-performance">Performance: +156.2%</div>
+                    <button class="copy-btn" onclick="copyStrategy('scalping')">Copy Strategy</button>
+                </div>
+                
+                <div class="strategy-card">
+                    <div class="strategy-image">🎯</div>
+                    <div class="strategy-name">Arbitrage Hunter</div>
+                    <div class="strategy-performance">Performance: +93.4%</div>
+                    <button class="copy-btn" onclick="copyStrategy('arbitrage')">Copy Strategy</button>
+                </div>
+                
+                <div class="strategy-card">
+                    <div class="strategy-image">🔥</div>
+                    <div class="strategy-name">Volatility Surge</div>
+                    <div class="strategy-performance">Performance: +201.8%</div>
+                    <button class="copy-btn" onclick="copyStrategy('volatility')">Copy Strategy</button>
+                </div>
+                
+                <div class="strategy-card">
+                    <div class="strategy-image">🎲</div>
+                    <div class="strategy-name">Grid Trading</div>
+                    <div class="strategy-performance">Performance: +74.1%</div>
+                    <button class="copy-btn" onclick="copyStrategy('grid')">Copy Strategy</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Deploy Strategy Page -->
+        <div id="deploy" class="page">
+            <h2 class="section-title">Deploy New Strategy</h2>
+            
+            <div class="form-container">
+                <form id="deployForm">
+                    <div class="form-group">
+                        <label class="form-label">Strategy Name</label>
+                        <input type="text" class="form-input" placeholder="Enter strategy name" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Indicator to Follow</label>
+                        <select class="form-select" required>
+                            <option value="">Select an indicator</option>
+                            <option value="rsi">RSI (Relative Strength Index)</option>
+                            <option value="macd">MACD (Moving Average Convergence Divergence)</option>
+                            <option value="bb">Bollinger Bands</option>
+                            <option value="sma">Simple Moving Average</option>
+                            <option value="ema">Exponential Moving Average</option>
+                            <option value="stoch">Stochastic Oscillator</option>
+                            <option value="cci">Commodity Channel Index</option>
+                            <option value="atr">Average True Range</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Trading Bounds</label>
+                        <div class="bounds-container">
+                            <div>
+                                <label class="form-label">Upper Bound</label>
+                                <input type="number" class="form-input" placeholder="Upper limit" step="0.01" required>
+                            </div>
+                            <div>
+                                <label class="form-label">Lower Bound</label>
+                                <input type="number" class="form-input" placeholder="Lower limit" step="0.01" required>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="submit-btn">Deploy Strategy</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Place Encrypted Order Page -->
+        <div id="order" class="page">
+            <h2 class="section-title">Place Encrypted Order</h2>
+            
+            <div class="form-container">
+                <form id="orderForm">
+                    <div class="form-group">
+                        <label class="form-label">Trading Pair</label>
+                        <select class="form-select" required>
+                            <option value="">Select trading pair</option>
+                            <option value="BTC-USD">BTC-USD</option>
+                            <option value="ETH-USD">ETH-USD</option>
+                            <option value="SOL-USD">SOL-USD</option>
+                            <option value="AVAX-USD">AVAX-USD</option>
+                            <option value="MATIC-USD">MATIC-USD</option>
+                            <option value="DOGE-USD">DOGE-USD</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Order Type</label>
+                        <select class="form-select" required>
+                            <option value="">Select order type</option>
+                            <option value="market">Market Order</option>
+                            <option value="limit">Limit Order</option>
+                            <option value="stop">Stop Order</option>
+                            <option value="stop-limit">Stop Limit Order</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Side</label>
+                        <select class="form-select" required>
+                            <option value="">Select side</option>
+                            <option value="buy">Buy (Long)</option>
+                            <option value="sell">Sell (Short)</option>
+                        </select>
+                    </div>
+                    
+                    <div class="bounds-container">
+                        <div class="form-group">
+                            <label class="form-label">Quantity</label>
+                            <input type="number" class="form-input" placeholder="Amount" step="0.0001" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Price (USD)</label>
+                            <input type="number" class="form-input" placeholder="Price" step="0.01">
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Leverage</label>
+                        <select class="form-select">
+                            <option value="1">1x</option>
+                            <option value="2">2x</option>
+                            <option value="5">5x</option>
+                            <option value="10">10x</option>
+                            <option value="20">20x</option>
+                            <option value="50">50x</option>
+                        </select>
+                    </div>
+                    
+                    <button type="submit" class="submit-btn">Place Encrypted Order</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Account Page -->
+        <div id="account" class="page">
+            <h2 class="section-title">Account Overview</h2>
+            
+            <div class="account-section">
+                <div class="balance-card">
+                    <div class="balance-amount">$47,392.84</div>
+                    <div>Total Portfolio Value</div>
+                </div>
+                
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-top: 2rem;">
+                    <div style="text-align: center; padding: 1rem; background: var(--dark-gray); border-radius: 10px;">
+                        <div style="font-size: 1.5rem; color: var(--orange); font-weight: bold;">$12,847.32</div>
+                        <div>Available Balance</div>
+                    </div>
+                    <div style="text-align: center; padding: 1rem; background: var(--dark-gray); border-radius: 10px;">
+                        <div style="font-size: 1.5rem; color: var(--electric-blue); font-weight: bold;">$34,545.52</div>
+                        <div>In Positions</div>
+                    </div>
+                    <div style="text-align: center; padding: 1rem; background: var(--dark-gray); border-radius: 10px;">
+                        <div style="font-size: 1.5rem; color: #4CAF50; font-weight: bold;">+18.7%</div>
+                        <div>Total P&L</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="account-section">
+                <h3 class="section-subtitle">Recent Trades</h3>
+                <table class="trades-table">
+                    <thead>
+                        <tr>
+                            <th>Pair</th>
+                            <th>Side</th>
+                            <th>Size</th>
+                            <th>Price</th>
+                            <th>P&L</th>
+                            <th>Time</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>BTC-USD</td>
+                            <td>LONG</td>
+                            <td>0.5 BTC</td>
+                            <td>$43,247</td>
+                            <td class="profit">+$1,247</td>
+                            <td>2 hours ago</td>
+                        </tr>
+                        <tr>
+                            <td>ETH-USD</td>
+                            <td>SHORT</td>
+                            <td>2.3 ETH</td>
+                            <td>$2,847</td>
+                            <td class="loss">-$389</td>
+                            <td>5 hours ago</td>
+                        </tr>
+                        <tr>
+                            <td>SOL-USD</td>
+                            <td>LONG</td>
+                            <td>15 SOL</td>
+                            <td>$127.45</td>
+                            <td class="profit">+$567</td>
+                            <td>1 day ago</td>
+                        </tr>
+                        <tr>
+                            <td>AVAX-USD</td>
+                            <td>LONG</td>
+                            <td>50 AVAX</td>
+                            <td>$32.78</td>
+                            <td class="profit">+$234</td>
+                            <td>2 days ago</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function showPage(pageId) {
+            // Hide all pages
+            const pages = document.querySelectorAll('.page');
+            pages.forEach(page => {
+                page.classList.remove('active');
+            });
+            
+            // Remove active class from all nav links
+            const navLinks = document.querySelectorAll('.nav-link');
+            navLinks.forEach(link => {
+                link.classList.remove('active');
+            });
+            
+            // Show selected page
+            document.getElementById(pageId).classList.add('active');
+            
+            // Add active class to clicked nav link
+            event.target.classList.add('active');
+        }
+
+        function copyStrategy(strategyName) {
+            // Simulate copying strategy
+            alert(`Strategy "${strategyName}" copied to your account! You can now deploy it from the Deploy Strategy page.`);
+        }
+
+        // Form submission handlers
+        document.getElementById('deployForm')?.addEventListener('submit', function(e) {
+            e.preventDefault();
+            alert('Strategy deployed successfully! Your encrypted strategy is now running.');
+        });
+
+        document.getElementById('orderForm')?.addEventListener('submit', function(e) {
+            e.preventDefault();
+            alert('Encrypted order placed successfully! Your order is being processed securely.');
+        });
+
+        // Add some interactive animations
+        document.addEventListener('DOMContentLoaded', function() {
+            const cards = document.querySelectorAll('.feature-card, .strategy-card');
+            
+            cards.forEach(card => {
+                card.addEventListener('mouseenter', function() {
+                    this.style.transform = 'translateY(-10px) scale(1.02)';
+                });
+                
+                card.addEventListener('mouseleave', function() {
+                    this.style.transform = 'translateY(0) scale(1)';
+                });
+            });
+        });
+    </script>
+</body>
+</html>

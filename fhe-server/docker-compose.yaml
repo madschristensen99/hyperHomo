@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  fhe-server:
+    image: ${DOCKER_IMAGE}
+    ports:
+      - "3000:3000"
+    environment:
+      - RUST_LOG=info
+    restart: unless-stopped
+    networks:
+      - fhe-network
+
+networks:
+  fhe-network:
+    driver: bridge

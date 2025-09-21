@@ -9,20 +9,20 @@ use std::sync::Mutex;
 
 #[derive(Clone)]
 pub struct Position {
-    strategy_id: u128,
-    position_owner: String,
-    is_open: bool,
-    is_long: bool,
-    amount: u128,
+    pub strategy_id: u128,
+    pub position_owner: String,
+    pub is_open: bool,
+    pub is_long: bool,
+    pub amount: u128,
 }
 
 #[derive(Clone)]
 pub struct TradingStrategy {
-    name: String,
-    owner: String, // this is the builder address
-    upper_bound: FheUint8,
-    lower_bound: FheUint8,
-    positions: Vec<Position>,
+    pub name: String,
+    pub owner: String, // this is the builder address
+    pub upper_bound: FheUint8,
+    pub lower_bound: FheUint8,
+    pub positions: Vec<Position>,
  }
 
 #[derive(Clone)]

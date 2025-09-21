@@ -73,12 +73,6 @@ async fn main() {
         account_state: Arc::new(Mutex::new(account_state)),
     };
 
-<<<<<<< HEAD
-=======
-
-    // We'll use our own CORS middleware
-
->>>>>>> 249f71bbb52518528442d22755da4e3e51724abf
     let app = Router::new()
         .route("/", get(hello_world))
         .route("/create_strategy", post(handlers::trading::create_strategy_handler))
@@ -86,13 +80,11 @@ async fn main() {
         .route("/check_short_strategy", post(handlers::trading::check_short_strategy_handler))
         .route("/get_strategy/:id", get(handlers::trading::get_strategy_handler))
         .route("/get_all_strategies", get(handlers::trading::get_all_strategies_handler))
-<<<<<<< HEAD
         .route("/create_account", post(handlers::account::create_account_handler))
         .route("/deposit", post(handlers::account::deposit_handler))
         .route("/get_account/:address", get(handlers::account::get_account_handler))
-=======
+
         .layer(middleware::from_fn(cors_middleware))
->>>>>>> 249f71bbb52518528442d22755da4e3e51724abf
         .with_state(state);
 
     

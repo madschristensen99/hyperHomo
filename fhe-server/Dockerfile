@@ -1,5 +1,5 @@
-# Use official Rust image as builder
-FROM rust:1.83 AS builder
+# Use Rust nightly image as builder to support edition 2024
+FROM rustlang/rust:nightly AS builder
 
 WORKDIR /app
 COPY Cargo.toml Cargo.lock ./

@@ -276,7 +276,8 @@ async function getDepositedUsdc() {
     if (!vaultContract || !currentAccount) return '0';
     
     try {
-        const deposited = await vaultContract.getUserBalance(currentAccount);
+        // Use the balances mapping instead of getUserBalance
+        const deposited = await vaultContract.balances(currentAccount);
         return ethers.formatUnits(deposited, USDC_CONTRACT.decimals);
     } catch (error) {
         console.error('Error getting deposited USDC:', error);
@@ -291,7 +292,12 @@ async function checkUsdcAllowance() {
     try {
         const allowance = await usdcContract.allowance(currentAccount, VAULT_CONTRACT.address);
         const minAllowance = ethers.parseUnits('1', USDC_CONTRACT.decimals); // At least 1 USDC
-        isUsdcApproved = allowance.gte(minAllowance);
+        
+        // Compare as BigInt or numbers instead of using gte
+        const allowanceBigInt = BigInt(allowance.toString());
+        const minAllowanceBigInt = BigInt(minAllowance.toString());
+        isUsdcApproved = allowanceBigInt >= minAllowanceBigInt;
+        
         return isUsdcApproved;
     } catch (error) {
         console.error('Error checking USDC allowance:', error);
@@ -454,12 +460,22 @@ async function updateBalances() {
     if (!isWalletConnected || !currentAccount) return;
     
     try {
-        // Get USDC balance
-        const usdcBalance = await getUsdcBalance();
+        // Get USDC balance - with error handling
+        let usdcBalance = '0';
+        try {
+            usdcBalance = await getUsdcBalance();
+        } catch (error) {
+            console.error('Error getting USDC balance:', error);
+        }
         document.getElementById('usdc-balance').textContent = `${parseFloat(usdcBalance).toFixed(2)} USDC`;
         
-        // Get deposited USDC from blockchain
-        const depositedUsdc = await getDepositedUsdc();
+        // Get deposited USDC from blockchain - with error handling
+        let depositedUsdc = '0';
+        try {
+            depositedUsdc = await getDepositedUsdc();
+        } catch (error) {
+            console.error('Error getting deposited USDC:', error);
+        }
         
         // Try to get FHE server balance
         let fheBalance = null;
@@ -481,8 +497,15 @@ async function updateBalances() {
             document.getElementById('deposited-usdc').textContent = `${parseFloat(depositedUsdc).toFixed(2)} USDC`;
         }
         
-        // Check USDC allowance
-        const isApproved = await checkUsdcAllowance();
+        // Check USDC allowance - with error handling
+        let isApproved = false;
+        try {
+            isApproved = await checkUsdcAllowance();
+        } catch (error) {
+            console.error('Error checking USDC allowance:', error);
+        }
+        
+        // Update UI
         document.getElementById('deposit-usdc-btn').disabled = !isApproved;
         document.getElementById('approve-usdc-btn').disabled = isApproved;
     } catch (error) {

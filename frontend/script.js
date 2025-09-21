@@ -953,6 +953,7 @@ async function loadMockTrades() {
                         userInvestments.push({
                             id: strategyId,
                             name: strategy.name,
+                            token: strategy.token || 'ETH',
                             amount: userInvestor.amount,
                             owner: strategy.owner
                         });
@@ -978,84 +979,33 @@ async function loadMockTrades() {
         // Clear the table
         tradesTableBody.innerHTML = '';
         
-        // Get the strategy details with all investor information
-        const strategy = await fetch(`${API_BASE_URL}/get_strategy/1`)
-            .then(res => res.ok ? res.json() : null)
-            .catch(err => {
-                console.error('Error fetching strategy details:', err);
-                return null;
-            });
-            
-        if (!strategy) {
-            tradesTableBody.innerHTML = `
-                <tr class="no-trades-row">
-                    <td colspan="6" class="error-message">Error fetching strategy details</td>
-                </tr>
-            `;
-            return;
-        }
+        console.log('User investments to display:', userInvestments);
         
-        console.log('Full strategy details:', strategy);
-        
-        // Filter investments by the current user
-        const userInvestmentsList = strategy.investors.filter(investor => 
-            investor.address.toLowerCase() === currentAccount.toLowerCase()
-        );
-        
-        console.log('User investments:', userInvestmentsList);
-        
-        if (userInvestmentsList.length === 0) {
-            tradesTableBody.innerHTML = `
-                <tr class="no-trades-row">
-                    <td colspan="6" class="no-data-message">No investments found for this user.</td>
-                </tr>
-            `;
-            return;
-        }
-        
-        // Generate trade entries for each investment
-        const trades = [];
-        
-        // Create a trade entry for each individual investment
-        userInvestmentsList.forEach((investment, index) => {
-            const now = new Date();
-            // Stagger the dates so they don't all show the same timestamp
-            const investmentDate = new Date(now.getTime() - (index * 3600000)); // 1 hour apart
-            
-            trades.push({
-                type: 'Investment',
-                strategyId: 1, // Currently hardcoded to strategy ID 1
-                strategyName: strategy.name,
-                amount: investment.amount,
-                status: 'Active',
-                return: 'Pending',
-                date: investmentDate
-            });
-        });
-        
-        // Sort trades by date, most recent first
-        trades.sort((a, b) => b.date - a.date);
-        
-        // Clear the table
-        tradesTableBody.innerHTML = '';
-        
-        // Add each trade to the table
-        trades.forEach(trade => {
+        // Add each investment as a row in the table
+        userInvestments.forEach(investment => {
             const row = document.createElement('tr');
+            row.classList.add('investment-row');
             
-            // Use a simple class name without spaces
-            const rowClass = trade.type.toLowerCase().includes('investment') ? 'investment-row' : 'trade-row';
-            row.classList.add(rowClass);
+            // Generate random values for demonstration
+            const entryPrice = (Math.random() * 2000 + 1000).toFixed(2);
+            const currentPrice = (Math.random() * 2000 + 1000).toFixed(2);
+            const pnl = (currentPrice - entryPrice).toFixed(2);
+            const pnlPercent = ((pnl / entryPrice) * 100).toFixed(2);
+            const isProfitable = pnl > 0;
             
-            const dateString = trade.date.toLocaleDateString() + ' ' + 
-                               trade.date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            // Create a date for the investment (random within the last week)
+            const now = new Date();
+            const randomDaysAgo = Math.floor(Math.random() * 7); // 0-6 days ago
+            const investmentDate = new Date(now.getTime() - (randomDaysAgo * 24 * 60 * 60 * 1000));
+            const dateString = investmentDate.toLocaleDateString() + ' ' + 
+                               investmentDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
             
             row.innerHTML = `
-                <td>Strategy #${trade.strategyId}</td>
-                <td>${trade.strategyName}</td>
-                <td>${trade.amount} USDC</td>
-                <td>${trade.status}</td>
-                <td class="pending">Pending</td>
+                <td>Strategy #${investment.id}</td>
+                <td>${investment.name}</td>
+                <td>${investment.amount} USDC</td>
+                <td>${investment.token}</td>
+                <td class="${isProfitable ? 'profit' : 'loss'}">${isProfitable ? '+' : ''}${pnlPercent}%</td>
                 <td>${dateString}</td>
             `;
             

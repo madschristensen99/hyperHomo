@@ -1,4 +1,4 @@
 .env
 config.json
 ethers.min.js
-tradeExecutor/
+tradeExecutor/__pycache__/

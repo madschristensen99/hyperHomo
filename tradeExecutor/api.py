@@ -27,8 +27,8 @@ def get_pnl():
         address, info, exchange = example_utils.setup(constants.TESTNET_API_URL, skip_ws=True)
         logger.info(f"Connected to exchange with account: {address}")
         
-        # Get user state
-        user_state = exchange.get_user_state()
+        # Get user state using the correct method
+        user_state = exchange.get_user_state_by_address(address)
         
         # Process the data
         result = {

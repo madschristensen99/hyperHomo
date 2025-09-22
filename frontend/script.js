@@ -51,13 +51,17 @@ function showPage(pageId, clickEvent) {
         clickEvent.target.classList.add('active');
     } else {
         // Find the nav link for this page and activate it
-        const navLink = document.querySelector(`.nav-link[onclick*="'${pageId}'"`);
-        if (navLink) navLink.classList.add('active');
+        const navLink = document.querySelector(`.nav-link[onclick="showPage('${pageId}')"]`);
+        if (navLink) {
+            navLink.classList.add('active');
+        }
     }
     
-    // Load data for specific pages
+    // Load page-specific content
     if (pageId === 'strategies') {
         loadStrategies();
+    } else if (pageId === 'order') {
+        loadOrderHistory();
     } else if (pageId === 'account') {
         // Check if wallet is connected and update UI accordingly
         if (isWalletConnected && currentAccount) {
@@ -215,6 +219,26 @@ async function getStrategy(strategyId) {
         return await response.json();
     } catch (error) {
         console.error('Error fetching strategy:', error);
+        throw error;
+    }
+}
+
+// Get limit orders for an address
+async function getLimitOrders(address) {
+    try {
+        if (!address) {
+            throw new Error('Address is required');
+        }
+        
+        const response = await fetch(`${API_BASE_URL}/get_limits_orders_long/${address}`);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+        
+        return await response.json();
+    } catch (error) {
+        console.error('Error fetching limit orders:', error);
         throw error;
     }
 }
@@ -675,8 +699,16 @@ async function connectWallet() {
                 console.error('Failed to initialize contracts');
             }
             
-            // Update UI to show connected state
+            // Update UI to show connected wallet
             updateWalletUI(true);
+            
+            // Get account info
+            await getAccountInfo();
+            
+            // Load order history if on the order page
+            if (document.getElementById('order').classList.contains('active')) {
+                loadOrderHistory();
+            }
             
             // Check if account exists on FHE server, if not create it
             try {
@@ -847,63 +879,78 @@ async function getAccountInfo() {
         let availableBalance = 0;
         let pnl = '0%';
         
-        // Try to fetch PnL data from our API
+        // Try to fetch PnL data from our API if available
+        let usePnlApi = false;
         try {
-            const pnlData = await fetchAccountPnL();
-            console.log('PnL data:', pnlData);
+            // First check if the API is available without waiting for a full timeout
+            const checkResponse = await fetch(`${PNL_API_URL}/strategies/performance`, { 
+                signal: AbortSignal.timeout(1000) 
+            }).catch(() => ({ ok: false }));
             
-            if (pnlData && pnlData.account_summary) {
-                // Use real PnL data
-                totalBalance = pnlData.account_summary.account_value || 0;
-                availableBalance = pnlData.account_summary.available_margin || 0;
-                
-                // Calculate positions value from positions data
-                if (pnlData.positions && pnlData.positions.length > 0) {
-                    inPositions = pnlData.positions.reduce((total, pos) => total + pos.position_value, 0);
+            if (checkResponse.ok) {
+                usePnlApi = true;
+                try {
+                    const pnlData = await fetchAccountPnL();
+                    console.log('PnL data:', pnlData);
                     
-                    // Calculate overall PnL
-                    const totalPnl = pnlData.positions.reduce((total, pos) => total + pos.unrealized_pnl, 0);
-                    const pnlPercent = (totalPnl / totalBalance) * 100;
-                    pnl = `${pnlPercent.toFixed(2)}%`;
-                    
-                    // Add color class based on PnL
-                    setTimeout(() => {
-                        const pnlElement = document.getElementById('total-pnl');
-                        if (pnlElement) {
-                            pnlElement.classList.remove('positive-pnl', 'negative-pnl');
-                            pnlElement.classList.add(pnlPercent >= 0 ? 'positive-pnl' : 'negative-pnl');
+                    if (pnlData && pnlData.account_summary) {
+                        // Use real PnL data
+                        totalBalance = pnlData.account_summary.account_value || 0;
+                        availableBalance = pnlData.account_summary.available_margin || 0;
+                        
+                        // Calculate positions value from positions data
+                        if (pnlData.positions && pnlData.positions.length > 0) {
+                            inPositions = pnlData.positions.reduce((total, pos) => total + pos.position_value, 0);
+                            
+                            // Calculate overall PnL
+                            const totalPnl = pnlData.positions.reduce((total, pos) => total + pos.unrealized_pnl, 0);
+                            const pnlPercent = (totalPnl / totalBalance) * 100;
+                            pnl = `${pnlPercent.toFixed(2)}%`;
+                            
+                            // Add color class based on PnL
+                            setTimeout(() => {
+                                const pnlElement = document.getElementById('total-pnl');
+                                if (pnlElement) {
+                                    pnlElement.classList.remove('positive-pnl', 'negative-pnl');
+                                    pnlElement.classList.add(pnlPercent >= 0 ? 'positive-pnl' : 'negative-pnl');
+                                }
+                            }, 0);
                         }
-                    }, 0);
+                    }
+                } catch (innerPnlError) {
+                    console.error('Error fetching PnL data details:', innerPnlError);
+                    usePnlApi = false;
                 }
             }
         } catch (pnlError) {
-            console.error('Error fetching PnL data:', pnlError);
+            console.error('Error checking PnL API availability:', pnlError);
+            usePnlApi = false;
+        }
+        
+        // Fall back to FHE server data if PnL API fails or is not available
+        if (!usePnlApi && fheAccountData) {
+            // Use FHE server data
+            totalBalance = fheBalance;
             
-            // Fall back to FHE server data if PnL API fails
-            if (fheAccountData) {
-                // Use FHE server data
-                totalBalance = fheBalance;
+            // Get positions from FHE server
+            const positionsResponse = await fetch(`${API_BASE_URL}/get_all_strategies`)
+                .then(res => res.ok ? res.json() : [])
+                .catch(() => []);
                 
-                // Get positions from FHE server
-                const positionsResponse = await fetch(`${API_BASE_URL}/get_all_strategies`)
-                    .then(res => res.ok ? res.json() : [])
-                    .catch(() => []);
-                    
-                // Calculate positions value based on strategies owned by this user
-                let positionsValue = 0;
-                if (Array.isArray(positionsResponse)) {
-                    const userStrategies = positionsResponse.filter(s => s.owner === currentAccount);
-                    // Count the number of strategies as position value for now
-                    positionsValue = userStrategies.length > 0 ? (totalBalance * 0.2) : 0;
-                }
-                
-                // Set positions and available balance
-                inPositions = positionsValue;
-                availableBalance = totalBalance - inPositions;
-                
-                // Set P&L to zero for now - would be calculated from actual trade history
-                pnl = '0%';
+            // Calculate positions value based on strategies owned by this user
+            let positionsValue = 0;
+            if (Array.isArray(positionsResponse)) {
+                const userStrategies = positionsResponse.filter(s => s.owner === currentAccount);
+                // Count the number of strategies as position value for now
+                positionsValue = userStrategies.length > 0 ? (totalBalance * 0.2) : 0;
             }
+            
+            // Set positions and available balance
+            inPositions = positionsValue;
+            availableBalance = totalBalance - inPositions;
+            
+            // Set P&L to zero for now - would be calculated from actual trade history
+            pnl = '0%';
         }
         
         // Update UI with account information
@@ -1330,9 +1377,9 @@ function copyStrategy(strategyName) {
     alert(`Strategy "${strategyName}" copied to your account! You can now deploy it from the Deploy Strategy page.`);
 }
 
-// Place an order using a strategy
+// Place an encrypted long order with stop loss and take profit
 async function placeOrder(formData) {
-    console.log('Placing order with data:', formData);
+    console.log('Placing encrypted long order with data:', formData);
     
     try {
         // Extract the token from the trading pair (e.g., "BTC" from "BTC-USD")
@@ -1348,8 +1395,8 @@ async function placeOrder(formData) {
                 address: currentAccount,
                 token: token,
                 asset: formData.pair,
-                stop: parseInt(formData.stop) || 0,
-                profit: parseInt(formData.profit) || 0
+                stop: parseInt(formData.stop),
+                profit: parseInt(formData.profit)
             })
         });
         
@@ -1359,11 +1406,104 @@ async function placeOrder(formData) {
         }
         
         const result = await response.text();
-        console.log('Limit order response:', result);
-        return { success: true, message: 'Encrypted limit order placed successfully!' };
+        console.log('Long order response:', result);
+        
+        // Refresh the order history after placing a new order
+        loadOrderHistory();
+        
+        return { success: true, message: 'Encrypted long order placed successfully!' };
     } catch (error) {
-        console.error('Error placing limit order:', error);
+        console.error('Error placing long order:', error);
         throw error;
+    }
+}
+
+// Load and display order history
+async function loadOrderHistory() {
+    if (!isWalletConnected || !currentAccount) {
+        // Hide loading and table, show empty message
+        document.getElementById('order-history-loading').style.display = 'none';
+        document.getElementById('order-history-table').style.display = 'none';
+        document.getElementById('order-history-empty').style.display = 'block';
+        document.getElementById('order-history-empty').textContent = 'Please connect your wallet to view your orders.';
+        return;
+    }
+    
+    // Show loading, hide others
+    document.getElementById('order-history-loading').style.display = 'block';
+    document.getElementById('order-history-table').style.display = 'none';
+    document.getElementById('order-history-empty').style.display = 'none';
+    document.getElementById('order-history-error').style.display = 'none';
+    
+    try {
+        // Fetch limit orders for the current account
+        const orders = await getLimitOrders(currentAccount);
+        console.log('Fetched limit orders:', orders);
+        
+        const tableBody = document.getElementById('order-history-body');
+        tableBody.innerHTML = '';
+        
+        // Check if there are any orders
+        if (Object.keys(orders).length === 0) {
+            // Hide loading and table, show empty message
+            document.getElementById('order-history-loading').style.display = 'none';
+            document.getElementById('order-history-table').style.display = 'none';
+            document.getElementById('order-history-empty').style.display = 'block';
+            return;
+        }
+        
+        // Process and display orders
+        for (const [orderId, order] of Object.entries(orders)) {
+            const row = document.createElement('tr');
+            
+            // Create order ID cell
+            const idCell = document.createElement('td');
+            idCell.textContent = `#${orderId}`;
+            row.appendChild(idCell);
+            
+            // Create asset cell
+            const assetCell = document.createElement('td');
+            assetCell.textContent = order.asset;
+            row.appendChild(assetCell);
+            
+            // Create stop loss cell
+            const stopCell = document.createElement('td');
+            stopCell.textContent = order.stop;
+            row.appendChild(stopCell);
+            
+            // Create take profit cell
+            const profitCell = document.createElement('td');
+            profitCell.textContent = order.profit;
+            row.appendChild(profitCell);
+            
+            // Create status cell
+            const statusCell = document.createElement('td');
+            const statusSpan = document.createElement('span');
+            statusSpan.className = 'order-status status-active';
+            statusSpan.textContent = 'Active';
+            statusCell.appendChild(statusSpan);
+            row.appendChild(statusCell);
+            
+            // Add row to table
+            tableBody.appendChild(row);
+        }
+        
+        // Hide loading and empty message, show table
+        document.getElementById('order-history-loading').style.display = 'none';
+        document.getElementById('order-history-empty').style.display = 'none';
+        document.getElementById('order-history-table').style.display = 'table';
+        
+    } catch (error) {
+        console.error('Error loading order history:', error);
+        
+        // Hide loading, table, and empty message, show error
+        document.getElementById('order-history-loading').style.display = 'none';
+        document.getElementById('order-history-table').style.display = 'none';
+        document.getElementById('order-history-empty').style.display = 'none';
+        
+        const errorElement = document.getElementById('order-history-error');
+        errorElement.textContent = `Error loading orders: ${error.message}`;
+        errorElement.style.display = 'block';
     }
 }
 
@@ -1543,21 +1683,22 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
             
-            // Get form elements by their IDs
+            // Get trading pair from the select element
             const pair = document.getElementById('tradingPair').value;
-            const orderType = document.getElementById('orderType').value;
-            const side = document.getElementById('orderSide').value;
-            const leverage = document.getElementById('leverage').value || '1';
             
-            // Get input values
-            const quantity = document.querySelector('input[name="quantity"]').value;
-            const price = document.querySelector('input[name="price"]').value || '0';
-            const stop = document.querySelector('input[name="stop"]').value || '';
-            const profit = document.querySelector('input[name="profit"]').value || '';
+            // Get stop loss and take profit values
+            const stop = document.querySelector('input[name="stop"]').value;
+            const profit = document.querySelector('input[name="profit"]').value;
             
             // Simple validation
-            if (!pair || !orderType || !side || !quantity) {
+            if (!pair || !stop || !profit) {
                 showOrderStatusModal('Please fill in all required fields!', 'error');
+                return;
+            }
+            
+            // Validate that stop and profit are within the valid range (0-255)
+            if (parseInt(stop) < 0 || parseInt(stop) > 255 || parseInt(profit) < 0 || parseInt(profit) > 255) {
+                showOrderStatusModal('Stop loss and take profit values must be between 0 and 255', 'error');
                 return;
             }
             
@@ -1572,7 +1713,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 // Place the order
                 const result = await placeOrder({
-                    pair, orderType, side, quantity, price, leverage, stop, profit
+                    pair, stop, profit
                 });
                 
                 // Reset form
@@ -1580,15 +1721,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 // Show success message with order details
                 showOrderStatusModal(
-                    'Encrypted order placed successfully! Your order is being processed securely.',
+                    'Encrypted long order placed successfully! Your order is being processed securely.',
                     'success',
                     {
-                        pair: formData.pair,
-                        type: formData.orderType,
-                        side: formData.side,
-                        quantity: formData.quantity,
-                        price: formData.price !== '0' ? formData.price : 'Market Price',
-                        leverage: `${formData.leverage}x`
+                        pair: pair,
+                        'stop loss': stop,
+                        'take profit': profit
                     }
                 );
             } catch (error) {

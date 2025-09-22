@@ -331,13 +331,46 @@ body::before {
     text-shadow: 0 0 5px rgba(137, 207, 240, 0.5);
 }
 
-.strategy-performance {
+.strategy-details {
     font-size: 0.9rem;
     color: var(--electric-blue);
     margin-bottom: 1rem;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+}
+
+.strategy-owner, .strategy-status {
+    margin-bottom: 0.5rem;
+}
+
+.status-indicator {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 0.8rem;
+    font-weight: bold;
+}
+
+.status-live {
+    background-color: rgba(76, 175, 80, 0.2);
+    color: #4CAF50;
+    border: 1px solid #4CAF50;
+}
+
+.status-inactive {
+    background-color: rgba(244, 67, 54, 0.1);
+    color: #F44336;
+    border: 1px solid #F44336;
+}
+
+.owner-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 0.8rem;
+    font-weight: bold;
+    background-color: rgba(30, 144, 255, 0.2);
+    color: var(--electric-blue);
+    border: 1px solid var(--electric-blue);
+    margin-top: 0.5rem;
 }
 
 .owned-strategy {

@@ -81,6 +81,20 @@ def execute_trade(exchange, strategy, is_long):
         )
         
         logger.info(f"Trade executed for strategy {strategy_id}. Result: {order_result}")
+        
+        # Update the strategy status in the FHE server
+        try:
+            logger.info(f"Updating strategy {strategy_id} status to open (is_long={is_long})")
+            payload = {
+                "strategy_id": strategy_id,
+                "is_long": is_long
+            }
+            response = requests.post(f"{FHE_SERVER_URL}/open_trade", json=payload)
+            response.raise_for_status()
+            logger.info(f"Strategy {strategy_id} status updated successfully")
+        except Exception as update_error:
+            logger.error(f"Error updating strategy status: {update_error}")
+        
         return order_result
     except Exception as e:
         logger.error(f"Error executing trade for strategy: {e}")

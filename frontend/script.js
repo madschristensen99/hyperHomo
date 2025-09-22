@@ -1109,11 +1109,19 @@ async function loadStrategies() {
                 strategyCard.classList.add('owned-strategy');
             }
             
+            // Check if the strategy is live (has isOpen field set to true)
+            const isLive = strategy.is_open === true;
+            
             strategyCard.innerHTML = `
                 <div class="strategy-image">${getStrategyEmoji(index)}</div>
                 <div class="strategy-name">${strategy.name}</div>
-                <div class="strategy-performance">
-                    Owner: ${truncateAddress(strategy.owner)}
+                <div class="strategy-details">
+                    <div class="strategy-owner">Owner: ${truncateAddress(strategy.owner)}</div>
+                    <div class="strategy-status">
+                        Status: <span class="status-indicator ${isLive ? 'status-live' : 'status-inactive'}">
+                            ${isLive ? 'Live' : 'Inactive'}
+                        </span>
+                    </div>
                     ${isOwnedByUser ? '<span class="owner-badge">Your Strategy</span>' : ''}
                 </div>
                 <button class="invest-btn" onclick="investWithStrategy(${index + 1}, '${strategy.name}')">Invest with Strategy</button>

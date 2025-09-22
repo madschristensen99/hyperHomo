@@ -139,6 +139,15 @@ pub struct AddLimitsOrderLongRequest {
     profit: u8,
 }
 
+#[derive(Clone, Serialize)]
+pub struct LimitsOrderLongResponse {
+    owner: String,
+    token: String,
+    asset: String,
+    stop: u8,
+    profit: u8,
+}
+
 pub async fn create_account_handler(State(state): State<AppState>, Json(payload): Json<CreateAccountRequest>) -> String {
     let account = state.account_state.lock().unwrap().create_account(payload.address, payload.balance);
     format!("Account created: {}", account)
@@ -192,7 +201,33 @@ pub async fn add_limits_order_long_handler(State(state): State<AppState>, Json(p
     Ok(format!("Limits order long added"))
 }
 
-
+pub async fn get_limits_orders_long_handler(State(state): State<AppState>, Path(address): Path<String>) -> Result<Json<HashMap<u128, LimitsOrderLongResponse>>, (StatusCode, String)> {
+    let account_state = state.account_state.lock().unwrap();
+    match account_state.get_limits_orders_long(address) {
+        Ok(limits_orders_long) => {
+            set_server_key((*state.server_key).clone());
+            let mut decrypted_orders = HashMap::new();
+            
+            for (order_id, order) in limits_orders_long {
+                let decrypted_stop: u8 = order.stop.decrypt(&*state.client_key);
+                let decrypted_profit: u8 = order.profit.decrypt(&*state.client_key);
+                
+                let decrypted_order = LimitsOrderLongResponse {
+                    owner: order.owner,
+                    token: order.token,
+                    asset: order.asset,
+                    stop: decrypted_stop,
+                    profit: decrypted_profit,
+                };
+                
+                decrypted_orders.insert(order_id, decrypted_order);
+            }
+            
+            Ok(Json(decrypted_orders))
+        },
+        Err(error) => Err((StatusCode::NOT_FOUND, error))
+    }
+}
 
 
 

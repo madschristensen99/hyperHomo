@@ -1219,3 +1219,75 @@ button:disabled {
     margin: 5px 0;
     font-size: 0.9rem;
 }
+
+/* Order History Styles */
+.order-history-section {
+    margin-top: 40px;
+    padding-top: 30px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.order-history-container {
+    margin-top: 20px;
+}
+
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+    background-color: rgba(0, 0, 0, 0.2);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.data-table th,
+.data-table td {
+    padding: 12px 15px;
+    text-align: left;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.data-table th {
+    background-color: rgba(0, 191, 255, 0.1);
+    color: var(--electric-blue);
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.8rem;
+    letter-spacing: 1px;
+}
+
+.data-table tbody tr:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.data-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.order-status {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.status-active {
+    background-color: rgba(76, 175, 80, 0.2);
+    color: #4CAF50;
+}
+
+.status-pending {
+    background-color: rgba(255, 152, 0, 0.2);
+    color: #FF9800;
+}
+
+.status-filled {
+    background-color: rgba(33, 150, 243, 0.2);
+    color: #2196F3;
+}
+
+.status-canceled {
+    background-color: rgba(244, 67, 54, 0.1);
+    color: #F44336;
+}

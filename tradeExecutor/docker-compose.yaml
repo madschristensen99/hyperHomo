@@ -1,0 +1,11 @@
+version: '3.8'
+
+services:
+  app:
+    image: ${DOCKER_IMAGE}
+    ports:
+      - "5000:5000"
+    environment:
+      - FHE_SERVER_URL=${FHE_SERVER_URL:-https://236a0c95beab122c72483c173da13cab2b7a16f6-3000.dstack-prod5.phala.network}
+      - FLASK_ENV=production
+    restart: always

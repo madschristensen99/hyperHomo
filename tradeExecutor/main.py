@@ -20,7 +20,8 @@ logging.basicConfig(
 logger = logging.getLogger("TradeExecutor")
 
 # FHE Server configuration
-FHE_SERVER_URL = "http://localhost:3000"
+import os
+FHE_SERVER_URL = os.environ.get("FHE_SERVER_URL", "http://localhost:3000")
 
 # Redstone Oracle configuration
 REDSTONE_API_URL = "https://api.redstone.finance/prices"

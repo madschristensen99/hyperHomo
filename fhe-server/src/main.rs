@@ -85,6 +85,7 @@ async fn main() {
         .route("/get_account/:address", get(handlers::account::get_account_handler))
         .route("/invest", post(handlers::account::invest_handler))
         .route("/open_trade", post(handlers::trading::open_trade_handler))
+        .route("/add_limits_order_long", post(handlers::account::add_limits_order_long_handler))
 
         .layer(middleware::from_fn(cors_middleware))
         .with_state(state);

@@ -96,6 +96,13 @@ impl AccountState {
         order_id
     }
 
+    pub fn get_limits_orders_long(&self, address: String) -> Result<HashMap<u128, LimitsOrderLong>, String> {
+        match self.accounts.get(&address) {
+            Some(account) => Ok(account.limits_orders_long.clone()),
+            None => Err(format!("Account {} not found", address))
+        }
+    }
+
 }
 
 #[derive(Deserialize)]
@@ -184,4 +191,8 @@ pub async fn add_limits_order_long_handler(State(state): State<AppState>, Json(p
     account_state.add_limits_order_long(payload.address.clone(), limits_order_long);
     Ok(format!("Limits order long added"))
 }
+
+
+
+
 

@@ -130,6 +130,11 @@ pub struct OpenTradeRequest {
     is_long: bool,
 }
 
+#[derive(Deserialize)]
+pub struct CalcRsiRequest {
+    prices: Vec<f64>,
+}
+
 pub async fn create_strategy_handler(State(state): State<AppState>, Json(payload): Json<CreateStrategyRequest>) -> Result<String, (StatusCode, String)> {
     let upper_bound = FheUint8::encrypt(payload.upper_bound, &*state.client_key);
     let lower_bound = FheUint8::encrypt(payload.lower_bound, &*state.client_key);
@@ -207,4 +212,62 @@ pub async fn open_trade_handler(State(state): State<AppState>, Json(payload): Js
     };
     trading_state.update_strategy_position(payload.strategy_id, payload.is_long, true);
     Ok(format!("Trade opened"))
+}
+
+pub async fn calc_rsi(State(_state): State<AppState>, Json(payload): Json<CalcRsiRequest>) -> Result<Json<u8>, (StatusCode, String)> {
+    if payload.prices.len() < 15 {
+        return Err((StatusCode::BAD_REQUEST, "Need at least 15 price values for RSI calculation".to_string()));
+    }
+
+    let prices = &payload.prices;
+    
+    // Calculate RSI using the standard 14-period Wilder RSI
+    let rsi_value = match calculate_rsi(prices) {
+        Some(rsi) => rsi,
+        None => return Err((StatusCode::BAD_REQUEST, "Invalid price data for RSI calculation".to_string())),
+    };
+
+    // Convert to u8 (0-100 range) and clamp
+    let rsi_u8 = (rsi_value.round() as u8).min(100);
+    
+    Ok(Json(rsi_u8))
+}
+
+/// Standard 14-period Wilder RSI.
+/// `prices` must have ≥ 15 elements (first 14 to seed the averages).
+/// Returns the last RSI value (0–100).
+fn calculate_rsi(prices: &[f64]) -> Option<f64> {
+    if prices.len() < 15 {
+        return None;
+    }
+
+    let mut avg_gain = 0.0;
+    let mut avg_loss = 0.0;
+
+    // seed the first 14-period averages
+    for w in prices.windows(2).take(14) {
+        let change = w[1] - w[0];
+        if change > 0.0 {
+            avg_gain += change;
+        } else {
+            avg_loss += -change;
+        }
+    }
+    avg_gain /= 14.0;
+    avg_loss /= 14.0;
+
+    // Wilder smoothing for the rest of the slice
+    for w in prices.windows(2).skip(14) {
+        let change = w[1] - w[0];
+        let (g, l) = if change > 0.0 {
+            (change, 0.0)
+        } else {
+            (0.0, -change)
+        };
+        avg_gain = (avg_gain * 13.0 + g) / 14.0;
+        avg_loss = (avg_loss * 13.0 + l) / 14.0;
+    }
+
+    let rs = avg_gain / avg_loss;
+    Some(100.0 - (100.0 / (1.0 + rs)))
 }

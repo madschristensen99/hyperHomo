@@ -15,6 +15,7 @@ pub struct Investor {
 
 #[derive(Clone)]
 pub struct TradingStrategy {
+    pub id: u128,
     pub name: String,
     pub owner: String, // this is the builder address
     pub token: String,
@@ -43,7 +44,7 @@ impl TradingState {
     pub fn create_strategy(&mut self, name: String, owner: String, upper_bound: FheUint8, lower_bound: FheUint8, token: String) -> u128 {
         self.id_counter += 1;
         let strategy_id = self.id_counter;
-        self.strategies.insert(strategy_id, TradingStrategy { name, owner, upper_bound, lower_bound, amount: 0, investors: Vec::new(), is_open: false, is_long: false, token: token });
+        self.strategies.insert(strategy_id, TradingStrategy { id: strategy_id, name, owner, upper_bound, lower_bound, amount: 0, investors: Vec::new(), is_open: false, is_long: false, token: token });
         strategy_id
     }
 
@@ -101,6 +102,7 @@ pub struct CreateStrategyRequest {
 
 #[derive(Serialize)]
 pub struct GetStrategyResponse {
+    id: u128,
     name: String,
     owner: String,
     token: String,
@@ -140,6 +142,7 @@ pub async fn get_strategy_handler(State(state): State<AppState>, Path(id): Path<
     let trading_state = state.trading_state.lock().unwrap();
     match trading_state.get_strategy(id) {
         Ok(strategy) => Ok(Json(GetStrategyResponse {
+            id: strategy.id,
             name: strategy.name,
             owner: strategy.owner,  
             token: strategy.token,
@@ -155,6 +158,7 @@ pub async fn get_strategy_handler(State(state): State<AppState>, Path(id): Path<
 pub async fn get_all_strategies_handler(State(state): State<AppState>) -> Json<Vec<GetStrategyResponse>> {
     let strategies = state.trading_state.lock().unwrap().get_all_strategies();
     Json(strategies.into_iter().map(|strategy| GetStrategyResponse {
+        id: strategy.id,
         name: strategy.name,
         owner: strategy.owner,
         token: strategy.token,

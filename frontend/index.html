@@ -142,7 +142,7 @@
                 <form id="orderForm">
                     <div class="form-group">
                         <label class="form-label">Trading Pair</label>
-                        <select class="form-select" required>
+                        <select id="tradingPair" class="form-select" required>
                             <option value="">Select trading pair</option>
                             <option value="BTC-USD">BTC-USD</option>
                             <option value="ETH-USD">ETH-USD</option>
@@ -155,7 +155,7 @@
                     
                     <div class="form-group">
                         <label class="form-label">Order Type</label>
-                        <select class="form-select" required>
+                        <select id="orderType" class="form-select" required>
                             <option value="">Select order type</option>
                             <option value="market">Market Order</option>
                             <option value="limit">Limit Order</option>
@@ -166,7 +166,7 @@
                     
                     <div class="form-group">
                         <label class="form-label">Side</label>
-                        <select class="form-select" required>
+                        <select id="orderSide" class="form-select" required>
                             <option value="">Select side</option>
                             <option value="buy">Buy (Long)</option>
                             <option value="sell">Sell (Short)</option>
@@ -176,19 +176,33 @@
                     <div class="bounds-container">
                         <div class="form-group">
                             <label class="form-label">Quantity</label>
-                            <input type="number" class="form-input" placeholder="Amount" step="0.0001" required>
+                            <input type="number" class="form-input" name="quantity" placeholder="Amount" step="0.0001" required>
                         </div>
                         
                         <div class="form-group">
                             <label class="form-label">Price (USD)</label>
-                            <input type="number" class="form-input" placeholder="Price" step="0.01">
+                            <input type="number" class="form-input" name="price" placeholder="Price" step="0.01">
                             <small class="form-hint">Leave empty for market orders</small>
+                        </div>
+                    </div>
+                    
+                    <div class="bounds-container">
+                        <div class="form-group">
+                            <label class="form-label">Stop Loss (0-255)</label>
+                            <input type="number" class="form-input" name="stop" placeholder="Stop Loss" min="0" max="255" step="1">
+                            <small class="form-hint">Encrypted value for stop loss</small>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Take Profit (0-255)</label>
+                            <input type="number" class="form-input" name="profit" placeholder="Take Profit" min="0" max="255" step="1">
+                            <small class="form-hint">Encrypted value for take profit</small>
                         </div>
                     </div>
                     
                     <div class="form-group">
                         <label class="form-label">Leverage</label>
-                        <select class="form-select">
+                        <select id="leverage" class="form-select">
                             <option value="1">1x</option>
                             <option value="2">2x</option>
                             <option value="5">5x</option>

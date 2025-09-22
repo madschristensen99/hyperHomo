@@ -1332,13 +1332,50 @@ function copyStrategy(strategyName) {
 
 // Place an order using a strategy
 async function placeOrder(formData) {
-    // This would integrate with Hyperliquid API in a real implementation
-    // For now, we'll just simulate an order placement
-    return new Promise(resolve => {
-        setTimeout(() => {
-            resolve({ success: true, message: 'Order placed successfully!' });
-        }, 1000);
-    });
+    console.log('Placing order with data:', formData);
+    
+    // Check if stop and profit values are provided for limit orders
+    if (formData.orderType === 'limit' && (formData.stop || formData.profit)) {
+        try {
+            // Extract the token from the trading pair (e.g., "BTC" from "BTC-USD")
+            const token = formData.pair.split('-')[0];
+            
+            // Call the add_limits_order_long endpoint
+            const response = await fetch(`${API_BASE_URL}/add_limits_order_long`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    address: currentAccount,
+                    token: token,
+                    asset: formData.pair,
+                    stop: parseInt(formData.stop) || 0,
+                    profit: parseInt(formData.profit) || 0
+                })
+            });
+            
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`Server error: ${errorText}`);
+            }
+            
+            const result = await response.text();
+            console.log('Limit order response:', result);
+            return { success: true, message: 'Encrypted limit order placed successfully!' };
+        } catch (error) {
+            console.error('Error placing limit order:', error);
+            throw error;
+        }
+    } else {
+        // For other order types, simulate an order placement
+        console.log('Simulating order placement for non-limit orders');
+        return new Promise(resolve => {
+            setTimeout(() => {
+                resolve({ success: true, message: 'Order placed successfully!' });
+            }, 1000);
+        });
+    }
 }
 
 // Initialize the application when DOM is fully loaded
@@ -1465,24 +1502,17 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
             
-            const pairSelect = this.querySelector('select[required]:nth-of-type(1)');
-            const orderTypeSelect = this.querySelector('select[required]:nth-of-type(2)');
-            const sideSelect = this.querySelector('select[required]:nth-of-type(3)');
-            const quantityInput = this.querySelector('input[placeholder="Amount"]');
-            const priceInput = this.querySelector('input[placeholder="Price"]');
-            const leverageSelect = this.querySelector('select:last-of-type');
+            // Get form elements by their IDs
+            const pair = document.getElementById('tradingPair').value;
+            const orderType = document.getElementById('orderType').value;
+            const side = document.getElementById('orderSide').value;
+            const leverage = document.getElementById('leverage').value || '1';
             
-            if (!pairSelect || !orderTypeSelect || !sideSelect || !quantityInput) {
-                alert('Form fields not found!');
-                return;
-            }
-            
-            const pair = pairSelect.value;
-            const orderType = orderTypeSelect.value;
-            const side = sideSelect.value;
-            const quantity = quantityInput.value;
-            const price = priceInput?.value || '0';
-            const leverage = leverageSelect?.value || '1';
+            // Get input values
+            const quantity = document.querySelector('input[name="quantity"]').value;
+            const price = document.querySelector('input[name="price"]').value || '0';
+            const stop = document.querySelector('input[name="stop"]').value || '';
+            const profit = document.querySelector('input[name="profit"]').value || '';
             
             // Simple validation
             if (!pair || !orderType || !side || !quantity) {
@@ -1501,7 +1531,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 // Place the order
                 const result = await placeOrder({
-                    pair, orderType, side, quantity, price, leverage
+                    pair, orderType, side, quantity, price, leverage, stop, profit
                 });
                 
                 // Reset form

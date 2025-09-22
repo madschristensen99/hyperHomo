@@ -4,7 +4,7 @@ use axum::{Json, extract::{State, Path}, http::StatusCode};
 use crate::handlers::trading::TradingState;
 use crate::AppState;
 use crate::handlers::trading::Investor;
-use tfhe::{FheUint8, ServerKey, set_server_key, ClientKey};
+use tfhe::{FheUint8, FheUint16, ServerKey, set_server_key, ClientKey};
 use tfhe::prelude::*;
 
 
@@ -22,8 +22,8 @@ pub struct LimitsOrderLong {
     owner: String,
     token: String,
     asset: String,
-    stop: FheUint8,
-    profit: FheUint8,
+    stop: FheUint16,
+    profit: FheUint16,
 }
 
 #[derive(Clone, Serialize)]
@@ -31,8 +31,8 @@ pub struct LimitsOrderShort {
     owner: String,
     token: String,
     asset: String,
-    stop: FheUint8,
-    profit: FheUint8,
+    stop: FheUint16,
+    profit: FheUint16,
 }
 
 #[derive(Clone)]
@@ -135,7 +135,7 @@ pub struct AddLimitsOrderLongRequest {
     address: String,
     token: String,
     asset: String,
-    stop: u8,
+    stop: u16,
     profit: u8,
 }
 
@@ -144,8 +144,8 @@ pub struct LimitsOrderLongResponse {
     owner: String,
     token: String,
     asset: String,
-    stop: u8,
-    profit: u8,
+    stop: u16,
+    profit: u16,
 }
 
 pub async fn create_account_handler(State(state): State<AppState>, Json(payload): Json<CreateAccountRequest>) -> String {
@@ -194,8 +194,8 @@ pub async fn invest_handler(State(state): State<AppState>, Json(payload): Json<I
 pub async fn add_limits_order_long_handler(State(state): State<AppState>, Json(payload): Json<AddLimitsOrderLongRequest>) -> Result<String, (StatusCode, String)> {
     let mut account_state = state.account_state.lock().unwrap();
     let account = account_state.get_account(payload.address.clone());
-    let stop = FheUint8::encrypt(payload.stop, &*state.client_key);
-    let profit = FheUint8::encrypt(payload.profit, &*state.client_key);
+    let stop = FheUint16::encrypt(payload.stop, &*state.client_key);
+    let profit = FheUint16::encrypt(payload.profit, &*state.client_key);
     let limits_order_long = LimitsOrderLong { owner: payload.address.clone(), token: payload.token.clone(), asset: payload.asset.clone(), stop, profit };
     account_state.add_limits_order_long(payload.address.clone(), limits_order_long);
     Ok(format!("Limits order long added"))
@@ -209,8 +209,8 @@ pub async fn get_limits_orders_long_handler(State(state): State<AppState>, Path(
             let mut decrypted_orders = HashMap::new();
             
             for (order_id, order) in limits_orders_long {
-                let decrypted_stop: u8 = order.stop.decrypt(&*state.client_key);
-                let decrypted_profit: u8 = order.profit.decrypt(&*state.client_key);
+                let decrypted_stop: u16 = order.stop.decrypt(&*state.client_key);
+                let decrypted_profit: u16 = order.profit.decrypt(&*state.client_key);
                 
                 let decrypted_order = LimitsOrderLongResponse {
                     owner: order.owner,

@@ -1,3 +1,11 @@
 .env
 config.json
 ethers.min.js
+
+# Python bytecode files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Log files
+*.log

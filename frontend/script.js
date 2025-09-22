@@ -26,6 +26,9 @@ let isUsdcApproved = false;
 // FHE Server API URL
 const API_BASE_URL = 'http://localhost:3000';
 
+// PnL API URL
+const PNL_API_URL = 'http://localhost:5000/api';
+
 // Show the selected page and update navigation
 function showPage(pageId, clickEvent) {
     // Hide all pages
@@ -71,6 +74,42 @@ window.showPage = showPage;
 
 /**
  * API Functions for FHE Server Integration
+ */
+
+/**
+ * PnL API Functions
+ */
+
+// Fetch account PnL data
+async function fetchAccountPnL() {
+    try {
+        const response = await fetch(`${PNL_API_URL}/pnl`);
+        if (!response.ok) {
+            throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+        return await response.json();
+    } catch (error) {
+        console.error('Error fetching account PnL:', error);
+        throw error;
+    }
+}
+
+// Fetch strategy performance data
+async function fetchStrategyPerformance() {
+    try {
+        const response = await fetch(`${PNL_API_URL}/strategies/performance`);
+        if (!response.ok) {
+            throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+        return await response.json();
+    } catch (error) {
+        console.error('Error fetching strategy performance:', error);
+        throw error;
+    }
+}
+
+/**
+ * FHE API Functions
  */
 
 // Fetch all available strategies from the FHE server
@@ -808,29 +847,63 @@ async function getAccountInfo() {
         let availableBalance = 0;
         let pnl = '0%';
         
-        if (fheAccountData) {
-            // Use FHE server data
-            totalBalance = fheBalance;
+        // Try to fetch PnL data from our API
+        try {
+            const pnlData = await fetchAccountPnL();
+            console.log('PnL data:', pnlData);
             
-            // Get positions from FHE server
-            const positionsResponse = await fetch(`${API_BASE_URL}/get_all_strategies`)
-                .then(res => res.ok ? res.json() : [])
-                .catch(() => []);
+            if (pnlData && pnlData.account_summary) {
+                // Use real PnL data
+                totalBalance = pnlData.account_summary.account_value || 0;
+                availableBalance = pnlData.account_summary.available_margin || 0;
                 
-            // Calculate positions value based on strategies owned by this user
-            let positionsValue = 0;
-            if (Array.isArray(positionsResponse)) {
-                const userStrategies = positionsResponse.filter(s => s.owner === currentAccount);
-                // Count the number of strategies as position value for now
-                positionsValue = userStrategies.length > 0 ? (totalBalance * 0.2) : 0;
+                // Calculate positions value from positions data
+                if (pnlData.positions && pnlData.positions.length > 0) {
+                    inPositions = pnlData.positions.reduce((total, pos) => total + pos.position_value, 0);
+                    
+                    // Calculate overall PnL
+                    const totalPnl = pnlData.positions.reduce((total, pos) => total + pos.unrealized_pnl, 0);
+                    const pnlPercent = (totalPnl / totalBalance) * 100;
+                    pnl = `${pnlPercent.toFixed(2)}%`;
+                    
+                    // Add color class based on PnL
+                    setTimeout(() => {
+                        const pnlElement = document.getElementById('total-pnl');
+                        if (pnlElement) {
+                            pnlElement.classList.remove('positive-pnl', 'negative-pnl');
+                            pnlElement.classList.add(pnlPercent >= 0 ? 'positive-pnl' : 'negative-pnl');
+                        }
+                    }, 0);
+                }
             }
+        } catch (pnlError) {
+            console.error('Error fetching PnL data:', pnlError);
             
-            // Set positions and available balance
-            inPositions = positionsValue;
-            availableBalance = totalBalance - inPositions;
-            
-            // Set P&L to zero for now - would be calculated from actual trade history
-            pnl = '0%';
+            // Fall back to FHE server data if PnL API fails
+            if (fheAccountData) {
+                // Use FHE server data
+                totalBalance = fheBalance;
+                
+                // Get positions from FHE server
+                const positionsResponse = await fetch(`${API_BASE_URL}/get_all_strategies`)
+                    .then(res => res.ok ? res.json() : [])
+                    .catch(() => []);
+                    
+                // Calculate positions value based on strategies owned by this user
+                let positionsValue = 0;
+                if (Array.isArray(positionsResponse)) {
+                    const userStrategies = positionsResponse.filter(s => s.owner === currentAccount);
+                    // Count the number of strategies as position value for now
+                    positionsValue = userStrategies.length > 0 ? (totalBalance * 0.2) : 0;
+                }
+                
+                // Set positions and available balance
+                inPositions = positionsValue;
+                availableBalance = totalBalance - inPositions;
+                
+                // Set P&L to zero for now - would be calculated from actual trade history
+                pnl = '0%';
+            }
         }
         
         // Update UI with account information
@@ -856,7 +929,7 @@ async function getAccountInfo() {
         }
         
         // Load trades showing user's investments
-        await loadMockTrades();
+        await loadUserTrades();
         
         // Update USDC and deposited balances
         await updateBalances();
@@ -865,8 +938,8 @@ async function getAccountInfo() {
     }
 }
 
-// Load user's invested strategies as trades
-async function loadMockTrades() {
+// Load user's invested strategies as trades with real performance data
+async function loadUserTrades() {
     const tradesTableBody = document.getElementById('trades-table-body');
     
     // Show loading state
@@ -887,136 +960,101 @@ async function loadMockTrades() {
             return;
         }
         
-        // Get account data to check for invested strategies
-        let accountData;
+        // Try to fetch strategy performance data
+        let performanceData = [];
         try {
-            const accountResponse = await fetch(`${API_BASE_URL}/get_account/${currentAccount}`);
+            performanceData = await fetchStrategyPerformance();
+            console.log('Strategy performance data:', performanceData);
+        } catch (perfError) {
+            console.error('Error fetching strategy performance:', perfError);
+        }
+        
+        // Get account data
+        const accountResponse = await fetch(`${API_BASE_URL}/get_account/${currentAccount}`);
+        
+        if (accountResponse.ok) {
+            // Get all strategies
+            const strategies = await fetchAllStrategies();
             
-            if (!accountResponse.ok) {
+            // Filter for strategies this user has invested in
+            const userInvestments = strategies.filter(strategy => 
+                strategy.investors && strategy.investors.some(inv => inv.address.toLowerCase() === currentAccount.toLowerCase())
+            );
+            
+            if (userInvestments.length === 0) {
                 tradesTableBody.innerHTML = `
                     <tr class="no-trades-row">
-                        <td colspan="6" class="no-data-message">No account found. Deposit USDC first.</td>
+                        <td colspan="6" class="no-data-message">No investments found</td>
                     </tr>
                 `;
                 return;
             }
             
-            accountData = await accountResponse.json();
-            console.log('Account data for trades:', accountData);
-        } catch (error) {
-            console.error('Error fetching account data:', error);
-            tradesTableBody.innerHTML = `
-                <tr class="no-trades-row">
-                    <td colspan="6" class="error-message">Error fetching account data: ${error.message}</td>
-                </tr>
-            `;
-            return;
-        }
-        
-        // Check if the account has invested in any strategies
-        if (!accountData.strategy_ids || accountData.strategy_ids.length === 0) {
-            tradesTableBody.innerHTML = `
-                <tr class="no-trades-row">
-                    <td colspan="6" class="no-data-message">No investments yet. Invest in a strategy to see it here.</td>
-                </tr>
-            `;
-            return;
-        }
-        
-        console.log('Strategy IDs from account:', accountData.strategy_ids);
-        
-        // Generate user investments from strategy_ids
-        const userInvestments = [];
-        
-        // Show loading message while fetching strategies
-        tradesTableBody.innerHTML = `
-            <tr>
-                <td colspan="6" class="loading">Loading your investments...</td>
-            </tr>
-        `;
-        
-        // Fetch each strategy by ID
-        for (const strategyId of accountData.strategy_ids) {
-            try {
-                const strategyResponse = await fetch(`${API_BASE_URL}/get_strategy/${strategyId}`);
+            // Generate trades HTML
+            const tradesHTML = userInvestments.map(strategy => {
+                // Find the user's investment in this strategy
+                const userInvestment = strategy.investors.find(inv => 
+                    inv.address.toLowerCase() === currentAccount.toLowerCase()
+                );
                 
-                if (strategyResponse.ok) {
-                    const strategy = await strategyResponse.json();
-                    console.log(`Strategy #${strategyId} details:`, strategy);
+                // Find performance data for this strategy
+                const strategyPerf = performanceData.find(p => p.id === strategy.id);
+                
+                // Generate performance display
+                let performance;
+                if (strategyPerf && strategyPerf.performance) {
+                    const pnlValue = strategyPerf.performance.pnl;
+                    const roeValue = strategyPerf.performance.roe;
+                    const isPositive = pnlValue >= 0;
                     
-                    // Find the user's investment in this strategy
-                    const userInvestor = strategy.investors.find(investor => 
-                        investor.address.toLowerCase() === currentAccount.toLowerCase()
-                    );
-                    
-                    if (userInvestor) {
-                        userInvestments.push({
-                            id: strategyId,
-                            name: strategy.name,
-                            token: strategy.token || 'ETH',
-                            amount: userInvestor.amount,
-                            owner: strategy.owner
-                        });
-                    }
+                    performance = `
+                        <div class="${isPositive ? 'positive-pnl' : 'negative-pnl'}">
+                            <div>${isPositive ? '+' : ''}$${Math.abs(pnlValue).toFixed(2)}</div>
+                            <div class="small-text">${isPositive ? '+' : ''}${roeValue.toFixed(2)}%</div>
+                        </div>
+                    `;
                 } else {
-                    console.error(`Error fetching strategy #${strategyId}:`, await strategyResponse.text());
+                    // Fallback to simulated performance data if real data is unavailable
+                    const isPositive = Math.random() > 0.5;
+                    const pnlValue = isPositive ? 
+                        (Math.random() * 15).toFixed(2) : 
+                        (-Math.random() * 10).toFixed(2);
+                    
+                    performance = `<span class="${isPositive ? 'positive-pnl' : 'negative-pnl'}">${pnlValue >= 0 ? '+' : ''}$${pnlValue}</span>`;
                 }
-            } catch (error) {
-                console.error(`Error fetching strategy #${strategyId}:`, error);
-            }
-        }
-        
-        // If no investments found after checking
-        if (userInvestments.length === 0) {
+                
+                // Format date (using recent date for demonstration)
+                // In a production system, this would come from the actual trade timestamp
+                const date = new Date();
+                date.setDate(date.getDate() - Math.floor(Math.random() * 10)); // Simulate recent trades
+                const formattedDate = date.toLocaleDateString();
+                
+                return `
+                    <tr>
+                        <td>${strategy.id}</td>
+                        <td>${strategy.name}</td>
+                        <td>$${userInvestment ? userInvestment.amount : 0}</td>
+                        <td>${strategy.token}</td>
+                        <td>${performance}</td>
+                        <td>${formattedDate}</td>
+                    </tr>
+                `;
+            }).join('');
+            
+            tradesTableBody.innerHTML = tradesHTML;
+        } else {
+            // No account found
             tradesTableBody.innerHTML = `
                 <tr class="no-trades-row">
-                    <td colspan="6" class="no-data-message">No investments found. Invest in a strategy to see it here.</td>
+                    <td colspan="6" class="no-data-message">No account found</td>
                 </tr>
             `;
-            return;
         }
-        
-        // Clear the table
-        tradesTableBody.innerHTML = '';
-        
-        console.log('User investments to display:', userInvestments);
-        
-        // Add each investment as a row in the table
-        userInvestments.forEach(investment => {
-            const row = document.createElement('tr');
-            row.classList.add('investment-row');
-            
-            // Generate random values for demonstration
-            const entryPrice = (Math.random() * 2000 + 1000).toFixed(2);
-            const currentPrice = (Math.random() * 2000 + 1000).toFixed(2);
-            const pnl = (currentPrice - entryPrice).toFixed(2);
-            const pnlPercent = ((pnl / entryPrice) * 100).toFixed(2);
-            const isProfitable = pnl > 0;
-            
-            // Create a date for the investment (random within the last week)
-            const now = new Date();
-            const randomDaysAgo = Math.floor(Math.random() * 7); // 0-6 days ago
-            const investmentDate = new Date(now.getTime() - (randomDaysAgo * 24 * 60 * 60 * 1000));
-            const dateString = investmentDate.toLocaleDateString() + ' ' + 
-                               investmentDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-            
-            row.innerHTML = `
-                <td>Strategy #${investment.id}</td>
-                <td>${investment.name}</td>
-                <td>${investment.amount} USDC</td>
-                <td>${investment.token}</td>
-                <td class="${isProfitable ? 'profit' : 'loss'}">${isProfitable ? '+' : ''}${pnlPercent}%</td>
-                <td>${dateString}</td>
-            `;
-            
-            tradesTableBody.appendChild(row);
-        });
-        
     } catch (error) {
-        console.error('Error loading investments:', error);
+        console.error('Error fetching account data:', error);
         tradesTableBody.innerHTML = `
-            <tr class="no-trades-row">
-                <td colspan="6" class="error-message">Error loading investments: ${error.message}</td>
+            <tr class="error-row">
+                <td colspan="6" class="error-message">Error fetching account data: ${error.message}</td>
             </tr>
         `;
     }

@@ -793,12 +793,17 @@ button:disabled {
     font-weight: bold;
 }
 
-.profit {
+.profit, .positive-pnl {
     color: #4CAF50;
 }
 
-.loss {
+.loss, .negative-pnl {
     color: #F44336;
+}
+
+.small-text {
+    font-size: 0.8rem;
+    opacity: 0.8;
 }
 
 .section-title {

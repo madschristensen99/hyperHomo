@@ -2,3 +2,5 @@
 config.json
 ethers.min.js
 tradeExecutor/__pycache__/
+api.log
+trade_executor.log

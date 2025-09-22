@@ -4,6 +4,8 @@ use axum::{Json, extract::{State, Path}, http::StatusCode};
 use crate::handlers::trading::TradingState;
 use crate::AppState;
 use crate::handlers::trading::Investor;
+use tfhe::{FheUint8, ServerKey, set_server_key, ClientKey};
+use tfhe::prelude::*;
 
 
 #[derive(Clone, Serialize)]
@@ -11,22 +13,50 @@ pub struct Account {
     address: String, //eoa
     balance: u128, // in usdc??
     strategy_ids: Vec<u128>,
+    limits_orders_long: HashMap<u128, LimitsOrderLong>,
+    limits_orders_short: HashMap<u128, LimitsOrderShort>,
+}
+
+#[derive(Clone, Serialize)]
+pub struct LimitsOrderLong {
+    owner: String,
+    token: String,
+    asset: String,
+    stop: FheUint8,
+    profit: FheUint8,
+}
+
+#[derive(Clone, Serialize)]
+pub struct LimitsOrderShort {
+    owner: String,
+    token: String,
+    asset: String,
+    stop: FheUint8,
+    profit: FheUint8,
 }
 
 #[derive(Clone)]
 pub struct AccountState {
+    id_counter: u128,
     accounts: HashMap<String, Account>,
 }
 
 impl AccountState {
     pub fn new() -> Self {
         Self {
+            id_counter: 0,
             accounts: HashMap::new(),
         }
     }
 
     pub fn create_account(&mut self, address: String, balance: u128) -> String {
-        let account = Account { address: address.clone(), balance, strategy_ids: Vec::new() };
+        let account = Account { 
+            address: address.clone(), 
+            balance, 
+            strategy_ids: Vec::new(), 
+            limits_orders_long: HashMap::new(), 
+            limits_orders_short: HashMap::new() 
+        };
         self.accounts.insert(address.clone(), account);
         format!("Account created with address: {}", address)
     }
@@ -57,6 +87,15 @@ impl AccountState {
         let mut account = self.accounts.get_mut(&address).unwrap();
         account.strategy_ids.push(strategy_id);
     }
+
+    pub fn add_limits_order_long(&mut self, address: String, limits_order_long: LimitsOrderLong) -> u128 {
+        let mut account = self.accounts.get_mut(&address).unwrap();
+        let order_id = self.id_counter;
+        self.id_counter += 1;
+        account.limits_orders_long.insert(order_id, limits_order_long);
+        order_id
+    }
+
 }
 
 #[derive(Deserialize)]
@@ -82,6 +121,15 @@ pub struct InvestRequest {
     address: String,
     strategy_id: u128,
     amount: u128,
+}
+
+#[derive(Deserialize)]
+pub struct AddLimitsOrderLongRequest {
+    address: String,
+    token: String,
+    asset: String,
+    stop: u8,
+    profit: u8,
 }
 
 pub async fn create_account_handler(State(state): State<AppState>, Json(payload): Json<CreateAccountRequest>) -> String {
@@ -126,3 +174,14 @@ pub async fn invest_handler(State(state): State<AppState>, Json(payload): Json<I
         Err((StatusCode::BAD_REQUEST, format!("Insufficient balance")))
     }
 }
+
+pub async fn add_limits_order_long_handler(State(state): State<AppState>, Json(payload): Json<AddLimitsOrderLongRequest>) -> Result<String, (StatusCode, String)> {
+    let mut account_state = state.account_state.lock().unwrap();
+    let account = account_state.get_account(payload.address.clone());
+    let stop = FheUint8::encrypt(payload.stop, &*state.client_key);
+    let profit = FheUint8::encrypt(payload.profit, &*state.client_key);
+    let limits_order_long = LimitsOrderLong { owner: payload.address.clone(), token: payload.token.clone(), asset: payload.asset.clone(), stop, profit };
+    account_state.add_limits_order_long(payload.address.clone(), limits_order_long);
+    Ok(format!("Limits order long added"))
+}
+

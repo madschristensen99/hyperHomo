@@ -77,6 +77,17 @@ impl TradingState {
             None => Err(format!("Strategy {} not found", id))
         }
     }
+
+    pub fn update_strategy_position(&mut self, id: u128, is_long: bool, is_open: bool) -> Result<(), String> {
+        match self.strategies.get_mut(&id) {
+            Some(strategy) => {
+                strategy.is_long = is_long;
+                strategy.is_open = is_open;
+                Ok(())
+            }
+            None => Err(format!("Strategy {} not found", id))
+        }
+    }
 }
 
 #[derive(Deserialize)]
@@ -109,6 +120,12 @@ pub struct CheckLongStrategyRequest {
 pub struct CheckShortStrategyRequest {
     strategy_id: u128,
     value: u8,
+}
+
+#[derive(Deserialize)]
+pub struct OpenTradeRequest {
+    strategy_id: u128,
+    is_long: bool,
 }
 
 pub async fn create_strategy_handler(State(state): State<AppState>, Json(payload): Json<CreateStrategyRequest>) -> Result<String, (StatusCode, String)> {
@@ -176,4 +193,14 @@ pub async fn check_short_strategy_handler(State(state): State<AppState>, Json(pa
     let result = upper_bound.lt(&value);
     let result_decrypted: bool = result.decrypt(&*state.client_key);
     Ok(format!("Result: {}", result_decrypted))
+}
+
+pub async fn open_trade_handler(State(state): State<AppState>, Json(payload): Json<OpenTradeRequest>) -> Result<String, (StatusCode, String)> {
+    let mut trading_state = state.trading_state.lock().unwrap();
+    let strategy = match trading_state.get_strategy(payload.strategy_id) {
+        Ok(strategy) => strategy,
+        Err(error) => return Err((StatusCode::NOT_FOUND, error))
+    };
+    trading_state.update_strategy_position(payload.strategy_id, payload.is_long, true);
+    Ok(format!("Trade opened"))
 }

@@ -1334,48 +1334,89 @@ function copyStrategy(strategyName) {
 async function placeOrder(formData) {
     console.log('Placing order with data:', formData);
     
-    // Check if stop and profit values are provided for limit orders
-    if (formData.orderType === 'limit' && (formData.stop || formData.profit)) {
-        try {
-            // Extract the token from the trading pair (e.g., "BTC" from "BTC-USD")
-            const token = formData.pair.split('-')[0];
-            
-            // Call the add_limits_order_long endpoint
-            const response = await fetch(`${API_BASE_URL}/add_limits_order_long`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    address: currentAccount,
-                    token: token,
-                    asset: formData.pair,
-                    stop: parseInt(formData.stop) || 0,
-                    profit: parseInt(formData.profit) || 0
-                })
-            });
-            
-            if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(`Server error: ${errorText}`);
-            }
-            
-            const result = await response.text();
-            console.log('Limit order response:', result);
-            return { success: true, message: 'Encrypted limit order placed successfully!' };
-        } catch (error) {
-            console.error('Error placing limit order:', error);
-            throw error;
-        }
-    } else {
-        // For other order types, simulate an order placement
-        console.log('Simulating order placement for non-limit orders');
-        return new Promise(resolve => {
-            setTimeout(() => {
-                resolve({ success: true, message: 'Order placed successfully!' });
-            }, 1000);
+    try {
+        // Extract the token from the trading pair (e.g., "BTC" from "BTC-USD")
+        const token = formData.pair.split('-')[0];
+        
+        // Call the add_limits_order_long endpoint
+        const response = await fetch(`${API_BASE_URL}/add_limits_order_long`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                address: currentAccount,
+                token: token,
+                asset: formData.pair,
+                stop: parseInt(formData.stop) || 0,
+                profit: parseInt(formData.profit) || 0
+            })
         });
+        
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Server error: ${errorText}`);
+        }
+        
+        const result = await response.text();
+        console.log('Limit order response:', result);
+        return { success: true, message: 'Encrypted limit order placed successfully!' };
+    } catch (error) {
+        console.error('Error placing limit order:', error);
+        throw error;
     }
+}
+
+// Show order status modal with custom message and type (success, error, info)
+function showOrderStatusModal(message, type = 'info', orderDetails = null) {
+    const modal = document.getElementById('order-status-modal');
+    const statusBody = document.getElementById('order-status-body');
+    
+    // Clear previous content
+    statusBody.innerHTML = '';
+    statusBody.className = 'modal-info';
+    
+    // Add status class based on type
+    statusBody.classList.add(`status-${type}`);
+    
+    // Add message
+    const messageElement = document.createElement('p');
+    messageElement.textContent = message;
+    statusBody.appendChild(messageElement);
+    
+    // Add order details if provided
+    if (orderDetails) {
+        const detailsContainer = document.createElement('div');
+        detailsContainer.className = 'order-details';
+        
+        for (const [key, value] of Object.entries(orderDetails)) {
+            if (key !== 'success' && key !== 'message') {
+                const detail = document.createElement('p');
+                detail.innerHTML = `<strong>${key.charAt(0).toUpperCase() + key.slice(1)}:</strong> ${value}`;
+                detailsContainer.appendChild(detail);
+            }
+        }
+        
+        statusBody.appendChild(detailsContainer);
+    }
+    
+    // Show the modal
+    modal.style.display = 'block';
+    
+    // Add event listener to close button
+    const closeButtons = modal.querySelectorAll('.close-modal, #order-status-ok-btn');
+    closeButtons.forEach(button => {
+        button.onclick = function() {
+            modal.style.display = 'none';
+        };
+    });
+    
+    // Close when clicking outside the modal
+    window.onclick = function(event) {
+        if (event.target === modal) {
+            modal.style.display = 'none';
+        }
+    };
 }
 
 // Initialize the application when DOM is fully loaded
@@ -1497,7 +1538,7 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // Check if wallet is connected
             if (!isWalletConnected || !currentAccount) {
-                alert('Please connect your wallet first to place an order');
+                showOrderStatusModal('Please connect your wallet first to place an order', 'error');
                 showPage('account');
                 return;
             }
@@ -1516,7 +1557,7 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // Simple validation
             if (!pair || !orderType || !side || !quantity) {
-                alert('Please fill in all required fields!');
+                showOrderStatusModal('Please fill in all required fields!', 'error');
                 return;
             }
             
@@ -1537,10 +1578,21 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Reset form
                 this.reset();
                 
-                // Show success message
-                alert('Encrypted order placed successfully! Your order is being processed securely.');
+                // Show success message with order details
+                showOrderStatusModal(
+                    'Encrypted order placed successfully! Your order is being processed securely.',
+                    'success',
+                    {
+                        pair: formData.pair,
+                        type: formData.orderType,
+                        side: formData.side,
+                        quantity: formData.quantity,
+                        price: formData.price !== '0' ? formData.price : 'Market Price',
+                        leverage: `${formData.leverage}x`
+                    }
+                );
             } catch (error) {
-                alert(`Error placing order: ${error.message}`);
+                showOrderStatusModal(`Error placing order: ${error.message}`, 'error');
             } finally {
                 // Reset button state
                 submitBtn.textContent = originalText;

@@ -156,7 +156,7 @@ HyperHomo implements a multi-layered privacy architecture:
 | **Execution Privacy** | ❌ | ✅ | ✅ | ✅ |
 | **Verifiable Correctness** | ✅ | ❌ | ✅ | ✅ |
 | **Hardware Isolation** | ❌ | ❌ | ✅ | ✅ |
-| **Side-channel Protection** | ❌ | ❌ | ❌ | ✅ |
+| **Side-channel Protection** | ❌ | ✅ | ❌ | ✅ |
 
 ## Development and Deployment
 
